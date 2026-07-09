@@ -33,27 +33,30 @@ uses
   {$IFDEF MacOS}
   MacOSAll,
   {$ENDIF}
-  fpjson, jsonparser;
+  fpjson,
+  jsonparser;
 
 type
   TOS = class
   public
     class function SetCursorTo(Control: TControl; const ResName: string; CursorIndex: integer = 1001): boolean; static;
     class function SetFileTypeIcon(const Ext: string; IconIndex: integer): boolean; static;
-    class procedure RegAutoStart(const AEnable: boolean; const AppName: string); static;
     class procedure BringToFrontNoFocus(AForm: TForm); static;
     class function IsWindows7: boolean; static;
     class function IsWindows11: boolean; static;
     class function GetTickCountXp: DWORD; static;
     class procedure SleepBusy(MS: integer); static;
     class procedure SleepLoop(ALoop: integer = 0; ASleep: integer = 0; AProcessMessages: boolean = True); static;
-    class function GetTimestamp: int64; static;
-    class function GetTimestampMod(const SourceText: string): string;
     class function GetRandom(ALength: integer): int64; static;
     class procedure FindFilesByMasks(const Directory: string; const Masks: array of string; TempFiles: TStringList);
     class function BufferEndsWithLineBreak(const Buffer: TBytes): boolean;
     class function FileEndsWithLineBreak(const FileName: string): boolean;
     class function LoadFileAsBytes(const FileName: string): TBytes;
+    {$IFDEF WINDOWS}
+    class procedure RegAutoStart(const AEnable: boolean; const AppName: string); static;
+    class function GetTimestamp: int64; static;
+    class function GetTimestampMod(const SourceText: string): string;
+    {$ENDIF}
   end;
 
 implementation
@@ -301,43 +304,6 @@ begin
   {$ENDIF}
 end;
 
-class procedure TOS.RegAutoStart(const AEnable: boolean; const AppName: string);
-var
-  Reg: TRegistry;
-  ExeName: string;
-  OldName: string;
-begin
-  ExeName := '"' + ParamStr(0) + '"';
-
-  OldName := 'Trayslate';
-
-  Reg := TRegistry.Create;
-  try
-    Reg.RootKey := HKEY_CURRENT_USER;
-
-    if Reg.OpenKey('Software\Microsoft\Windows\CurrentVersion\Run', True) then
-    begin
-      // Remove old entry only if name changed
-      if (AppName <> OldName) and Reg.ValueExists(OldName) then
-        Reg.DeleteValue(OldName);
-
-      if AEnable then
-        Reg.WriteString(AppName, ExeName)
-      else
-      begin
-        if Reg.ValueExists(AppName) then
-          Reg.DeleteValue(AppName);
-
-        // also clean legacy key when disabling
-        if Reg.ValueExists(OldName) then
-          Reg.DeleteValue(OldName);
-      end;
-    end;
-  finally
-    Reg.Free;
-  end;
-end;
-
 class procedure TOS.BringToFrontNoFocus(AForm: TForm);
 begin
   {$IFDEF WINDOWS}
@@ -432,6 +398,120 @@ begin
     end;
 end;
 
+class function TOS.GetRandom(ALength: integer): int64;
+var
+  MinVal, MaxVal: int64;
+begin
+  if ALength > 18 then ALength := 18;
+  if ALength < 1 then ALength := 1;
+
+  MinVal := Trunc(Power(10, ALength - 1));
+  MaxVal := Trunc(Power(10, ALength)) - 1;
+
+  // Note: Randomize should be called once during app startup
+  Result := MinVal + RandomRange(0, MaxVal - MinVal + 1);
+end;
+
+class procedure TOS.FindFilesByMasks(const Directory: string; const Masks: array of string; TempFiles: TStringList);
+var
+  SR: TSearchRec;
+  Mask: string;
+  FullPath: string;
+begin
+  for Mask in Masks do
+  begin
+    FullPath := IncludeTrailingPathDelimiter(Directory) + Mask;
+    if FindFirst(FullPath, faAnyFile, SR) = 0 then
+    begin
+      try
+        repeat
+          TempFiles.Add(IncludeTrailingPathDelimiter(Directory) + SR.Name);
+        until FindNext(SR) <> 0;
+      finally
+        {$IFDEF Windows}
+        FindClose(SR.FindHandle);
+        {$ELSE}
+        FindClose(SR);
+        {$ENDIF}
+      end;
+    end;
+  end;
+end;
+
+class function TOS.BufferEndsWithLineBreak(const Buffer: TBytes): boolean;
+begin
+  Result := False;
+  if Length(Buffer) = 0 then Exit;
+
+  if (Buffer[High(Buffer)] = byte(#10)) or (Buffer[High(Buffer)] = byte(#13)) then
+    Result := True;
+end;
+
+class function TOS.FileEndsWithLineBreak(const FileName: string): boolean;
+var
+  Bytes: TBytes;
+begin
+  Bytes := LoadFileAsBytes(FileName);
+  Result := BufferEndsWithLineBreak(Bytes);
+end;
+
+class function TOS.LoadFileAsBytes(const FileName: string): TBytes;
+var
+  FS: TFileStream;
+begin
+  Result := nil;
+  SetLength(Result, 0);
+  if not FileExists(FileName) then Exit;
+
+  FS := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
+  try
+    SetLength(Result, FS.Size);
+    if FS.Size > 0 then
+      FS.ReadBuffer(Result[0], FS.Size);
+  finally
+    FS.Free;
+  end;
+end;
+
+{$IFDEF WINDOWS}
+
+class procedure TOS.RegAutoStart(const AEnable: boolean; const AppName: string);
+var
+  Reg: TRegistry;
+  ExeName: string;
+  OldName: string;
+begin
+  ExeName := '"' + ParamStr(0) + '"';
+
+  OldName := 'Trayslate';
+
+  Reg := TRegistry.Create;
+  try
+    Reg.RootKey := HKEY_CURRENT_USER;
+
+    if Reg.OpenKey('Software\Microsoft\Windows\CurrentVersion\Run', True) then
+    begin
+      // Remove old entry only if name changed
+      if (AppName <> OldName) and Reg.ValueExists(OldName) then
+        Reg.DeleteValue(OldName);
+
+      if AEnable then
+        Reg.WriteString(AppName, ExeName)
+      else
+      begin
+        if Reg.ValueExists(AppName) then
+          Reg.DeleteValue(AppName);
+
+        // also clean legacy key when disabling
+        if Reg.ValueExists(OldName) then
+          Reg.DeleteValue(OldName);
+      end;
+    end;
+  finally
+    Reg.Free;
+  end;
+end;
+
 class function TOS.GetTimestamp: int64;
 var
   SystemTime: TFileTime = (dwLowDateTime: 0; dwHighDateTime: 0);
@@ -482,74 +562,6 @@ begin
   Result := IntToStr(Timestamp);
 end;
 
-class function TOS.GetRandom(ALength: integer): int64;
-var
-  MinVal, MaxVal: int64;
-begin
-  if ALength > 18 then ALength := 18;
-  if ALength < 1 then ALength := 1;
-
-  MinVal := Trunc(Power(10, ALength - 1));
-  MaxVal := Trunc(Power(10, ALength)) - 1;
-
-  // Note: Randomize should be called once during app startup
-  Result := MinVal + RandomRange(0, MaxVal - MinVal + 1);
-end;
-
-class procedure TOS.FindFilesByMasks(const Directory: string; const Masks: array of string; TempFiles: TStringList);
-var
-  SR: TSearchRec;
-  Mask: string;
-  FullPath: string;
-begin
-  for Mask in Masks do
-  begin
-    FullPath := IncludeTrailingPathDelimiter(Directory) + Mask;
-    if FindFirst(FullPath, faAnyFile, SR) = 0 then
-    begin
-      repeat
-        TempFiles.Add(IncludeTrailingPathDelimiter(Directory) + SR.Name);
-      until FindNext(SR) <> 0;
-      // Pass the raw search handle to FindClose, because the available
-      // declaration expects a QWord, not a TSearchRec.
-      FindClose(SR.FindHandle);
-    end;
-  end;
-end;
-
-class function TOS.BufferEndsWithLineBreak(const Buffer: TBytes): boolean;
-begin
-  Result := False;
-  if Length(Buffer) = 0 then Exit;
-
-  if (Buffer[High(Buffer)] = byte(#10)) or (Buffer[High(Buffer)] = byte(#13)) then
-    Result := True;
-end;
-
-class function TOS.FileEndsWithLineBreak(const FileName: string): boolean;
-var
-  Bytes: TBytes;
-begin
-  Bytes := LoadFileAsBytes(FileName);
-  Result := BufferEndsWithLineBreak(Bytes);
-end;
-
-class function TOS.LoadFileAsBytes(const FileName: string): TBytes;
-var
-  FS: TFileStream;
-begin
-  Result := nil;
-  SetLength(Result, 0);
-  if not FileExists(FileName) then Exit;
-
-  FS := TFileStream.Create(FileName, fmOpenRead or fmShareDenyNone);
-  try
-    SetLength(Result, FS.Size);
-    if FS.Size > 0 then
-      FS.ReadBuffer(Result[0], FS.Size);
-  finally
-    FS.Free;
-  end;
-end;
+{$ENDIF}
 
 end.

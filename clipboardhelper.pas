@@ -22,10 +22,17 @@ uses
 
 type
   // Holds a single clipboard format together with its duplicated data handle
+  {$IFDEF WINDOWS}
   TClipboardFormatData = record
     Format: UINT;
     Handle: HGLOBAL;
   end;
+  {$ELSE}
+  TClipboardFormatData = record
+    Format: PtrUInt;
+    Handle: THandle;
+  end;
+  {$ENDIF}
 
   TClipboardFormatDataArray = array of TClipboardFormatData;
 
@@ -44,7 +51,7 @@ type
     procedure SetTextExcluded(Value: string);
 
     // Windows: creates a hidden window that monitors clipboard changes and adds the exclusion flag automatically
-    function CreateClipboardViewerWindow: HWND;
+    function CreateClipboardViewerWindow: THandle;
 
     // Returns True when the clipboard contains ONLY plain text formats
     function IsText: boolean;
@@ -61,9 +68,9 @@ type
 
 implementation
 
+{$IFDEF WINDOWS}
 uses osutils;
 
-{$IFDEF WINDOWS}
 var
   CachedExcludeFormat: UINT = 0;  // cached format id
 {$ENDIF}
@@ -277,7 +284,7 @@ begin
   {$ENDIF}
 end;
 
-function TClipboardHelper.CreateClipboardViewerWindow: HWND;
+function TClipboardHelper.CreateClipboardViewerWindow: THandle;
   {
     To call a buffer interception attempt and specify the do not save flag, in the main form:
     private:
@@ -381,8 +388,8 @@ var
   Count, Idx: Integer;
   {$ENDIF}
 begin
-  {$IFDEF WINDOWS}
   Result := [];
+  {$IFDEF WINDOWS}
   SetLength(Result, 0);
   // Open clipboard directly via Win API to avoid TClipboard caching conflicts
   if not OpenClipboard(0) then

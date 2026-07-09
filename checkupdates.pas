@@ -16,6 +16,7 @@ uses
   SysUtils,
   Dialogs,
   FileInfo,
+  Process,
   LCLIntf,
   fphttpclient,
   openssl,
@@ -25,11 +26,9 @@ uses
   {$ENDIF}
   {$IFDEF Linux}
   Unix,
-  opensslsockets,
   {$ENDIF}
   {$IFDEF MacOS}
   MacOSAll,
-  opensslsockets,
   {$ENDIF}
   fpjson,
   LResources;
