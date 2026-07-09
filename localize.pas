@@ -241,27 +241,27 @@ begin
   end;
 end;
 
-class function TLocalize.LoadPackagePoResource(const AResourcePrefix, ALang: string): string;
+class function TLocalize.LoadPackagePoResource(const AResourcePrefix,
+  ALang: string): string;
 var
-  ResStream: TResourceStream;
-  StrStream: TStringStream;
+  ResStream: TLazarusResourceStream;
   ResName: string;
 begin
   Result := '';
-  ResName := AResourcePrefix + '_' + UpperCase(ALang); // e.g., MYLANG_RU
-  ResStream := nil;
-  StrStream := nil;
+  ResName := AResourcePrefix + '.' + ALang;
+
   try
-    // HInstance inside a package refers to the package's own module
-    ResStream := TResourceStream.Create(HInstance, ResName, RT_RCDATA);
-    StrStream := TStringStream.Create('');
-    ResStream.SaveToStream(StrStream);
-    Result := StrStream.DataString;
+    ResStream := TLazarusResourceStream.Create(ResName, 'PO');
+    try
+      SetLength(Result, ResStream.Size);
+      if ResStream.Size > 0 then
+        ResStream.ReadBuffer(Result[1], ResStream.Size);
+    finally
+      ResStream.Free;
+    end;
   except
     Result := '';
   end;
-  StrStream.Free;
-  ResStream.Free;
 end;
 
 class procedure TLocalize.UpdatePackageTranslations(const APackagePrefix, ALang: string);

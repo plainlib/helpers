@@ -58,10 +58,6 @@ SOFTWARE.
         <UnitName Value="controlshelper"/>
       </Item>
       <Item>
-        <Filename Value="helpers.rc"/>
-        <Type Value="Text"/>
-      </Item>
-      <Item>
         <Filename Value="hotkeyhelper.pas"/>
         <UnitName Value="hotkeyhelper"/>
       </Item>

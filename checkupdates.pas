@@ -8,8 +8,6 @@ unit checkupdates;
 
 {$mode ObjFPC}{$H+}
 
-{$R helpers.rc}
-
 interface
 
 uses
@@ -33,7 +31,8 @@ uses
   MacOSAll,
   opensslsockets,
   {$ENDIF}
-  fpjson;
+  fpjson,
+  LResources;
 
 type
   TCheckUpdateThread = class(TThread)
@@ -445,5 +444,9 @@ begin
 end;
 
 {%EndRegion}
+
+initialization
+
+{$I helpers.lrs}
 
 end.
