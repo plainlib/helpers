@@ -30,7 +30,6 @@ uses
   {$ENDIF}
   {$IFDEF Linux}
   Unix,
-  Process,
   {$ENDIF}
   {$IFDEF MacOS}
   MacOSAll,
