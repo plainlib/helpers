@@ -13,8 +13,10 @@ interface
 
 uses
   Classes,
+  StdCtrls,
   SysUtils,
   Graphics,
+  Math,
   Grids,
   Clipbrd,
   LazUTF8,
@@ -44,6 +46,8 @@ type
     procedure DrawHighlightedText(ACanvas: TCanvas; ARect: TRect; Colors: TGridDrawColors; const AText, AFilterText: string;
       AHintText: string = string.Empty; AWordWrap: boolean = False; AShowLineBreaks: boolean = False;
       ABiDiRightToLeft: boolean = False);
+
+    function GetActualScrollBarVisibility(ScrollBarStyle: TScrollStyle): boolean;
   end;
 
 
@@ -677,6 +681,78 @@ begin
     for I := 0 to TextRanges.Count - 1 do
       Dispose(PTextRange(TextRanges[I]));
     TextRanges.Free;
+  end;
+end;
+
+function TStringGridHelper.GetActualScrollBarVisibility(ScrollBarStyle: TScrollStyle): boolean;
+var
+  ContentWidth, ContentHeight: integer;
+  ViewportWidth, ViewportHeight: integer;
+  i: integer;
+begin
+  Result := False;
+
+  if not (ScrollBarStyle in [ssHorizontal, ssVertical]) then
+    Exit(False);
+
+  // Calculate content dimensions
+  ContentWidth := 0;
+  ContentHeight := 0;
+
+  for i := Self.FixedCols to Self.ColCount - 1 do
+    Inc(ContentWidth, Self.ColWidths[i]);
+
+  for i := Self.FixedRows to Self.RowCount - 1 do
+    Inc(ContentHeight, Self.RowHeights[i]);
+
+  // Calculate viewport dimensions
+  ViewportWidth := Self.ClientWidth;
+  ViewportHeight := Self.ClientHeight;
+
+  for i := 0 to Self.FixedCols - 1 do
+    Dec(ViewportWidth, Self.ColWidths[i]);
+
+  for i := 0 to Self.FixedRows - 1 do
+    Dec(ViewportHeight, Self.RowHeights[i]);
+
+  // Account for grid lines
+  if Self.GridLineWidth > 0 then
+  begin
+    // Subtract only lines between scrollable cells
+    // Fixed lines don't affect scrolling area
+    Dec(ViewportWidth, (Self.ColCount - Self.FixedCols - 1) * Self.GridLineWidth);
+    Dec(ViewportHeight, (Self.RowCount - Self.FixedRows - 1) * Self.GridLineWidth);
+  end;
+
+  ViewportWidth := Max(ViewportWidth, 0);
+  ViewportHeight := Max(ViewportHeight, 0);
+  Inc(ViewportWidth, 5);
+  Inc(ViewportHeight, 14);
+
+  case ScrollBarStyle of
+    ssHorizontal:
+    begin
+      if not (Self.ScrollBars in [ssHorizontal, ssBoth, ssAutoHorizontal, ssAutoBoth]) then
+        Exit(False);
+
+      // For auto styles: show only if content exceeds viewport
+      // For non-auto styles: always show if enabled
+      if Self.ScrollBars in [ssAutoHorizontal, ssAutoBoth] then
+        Result := (ContentWidth > ViewportWidth)
+      else
+        Result := (Self.ScrollBars in [ssHorizontal, ssBoth]);
+    end;
+
+    ssVertical:
+    begin
+      if not (Self.ScrollBars in [ssVertical, ssBoth, ssAutoVertical, ssAutoBoth]) then
+        Exit(False);
+
+      if Self.ScrollBars in [ssAutoVertical, ssAutoBoth] then
+        Result := (ContentHeight > ViewportHeight)
+      else
+        Result := (Self.ScrollBars in [ssVertical, ssBoth]);
+    end;
   end;
 end;
 

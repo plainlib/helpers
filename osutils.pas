@@ -21,6 +21,8 @@ uses
   DateUtils,
   LCLIntf,
   LCLType,
+  LazUTF8,
+  Process,
   Dialogs,
   {$IFDEF WINDOWS}
   Windows,
@@ -52,6 +54,7 @@ type
     class function BufferEndsWithLineBreak(const Buffer: TBytes): boolean;
     class function FileEndsWithLineBreak(const FileName: string): boolean;
     class function LoadFileAsBytes(const FileName: string): TBytes;
+    class function GetConsoleEncoding: string;
     {$IFDEF WINDOWS}
     class procedure RegAutoStart(const AEnable: boolean; const AppName: string); static;
     class function GetTimestamp: int64; static;
@@ -470,6 +473,68 @@ begin
       FS.ReadBuffer(Result[0], FS.Size);
   finally
     FS.Free;
+  end;
+end;
+
+class function TOS.GetConsoleEncoding: string;
+var
+  Output: TStringList;
+  Process: TProcess;
+  Encoding: string;
+begin
+  Result := 'utf-8'; // Default to UTF-8
+  Process := TProcess.Create(nil);
+  Output := TStringList.Create;
+  try
+    {$IFDEF Windows}
+        Process.Executable := 'cmd.exe';
+        Process.Parameters.Add('/C chcp'); // Execute the chcp command
+    {$ELSE}
+    Process.Executable := '/bin/bash';
+    Process.Parameters.Add('-c');
+    Process.Parameters.Add('locale charmap'); // Check the character encoding
+    {$ENDIF}
+
+    Process.Options := [poUsePipes, poNoConsole];
+    Process.Execute;
+
+    Output.LoadFromStream(Process.Output);
+
+    // Check the output of chcp or locale charmap command
+    if Output.Count > 0 then
+    begin
+      {$IFDEF Windows}
+        if Pos('866', Output[0]) > 0 then
+          Encoding := 'CP866'           // Russian (Cyrillic)
+        else if Pos('850', Output[0]) > 0 then
+          Encoding := 'CP850'           // Western European
+        else if Pos('437', Output[0]) > 0 then
+          Encoding := 'CP437'           // United States
+        else if Pos('1252', Output[0]) > 0 then
+          Encoding := 'CP1252'          // Western European (Windows)
+        else if Pos('65001', Output[0]) > 0 then
+          Encoding := 'utf-8'           // UTF-8
+        else if Pos('936', Output[0]) > 0 then
+          Encoding := 'GB2312'          // Simplified Chinese
+        else if Pos('950', Output[0]) > 0 then
+          Encoding := 'Big5'            // Traditional Chinese
+        else if Pos('932', Output[0]) > 0 then
+          Encoding := 'Shift-JIS'       // Japanese
+        else if Pos('949', Output[0]) > 0 then
+          Encoding := 'CP949'           // Korean
+        else if Pos('1251', Output[0]) > 0 then
+          Encoding := 'CP1251';         // Cyrillic (Windows)
+      {$ELSE}
+      // For Linux and macOS, check the output of `locale charmap`
+      Encoding := Trim(Output[0]);
+      {$ENDIF}
+    end;
+
+    if Encoding <> '' then
+      Result := Encoding;
+  finally
+    Output.Free;
+    Process.Free;
   end;
 end;
 

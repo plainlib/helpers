@@ -81,6 +81,10 @@ SOFTWARE.
         <Filename Value="stringshelper.pas"/>
         <UnitName Value="stringshelper"/>
       </Item>
+      <Item>
+        <Filename Value="arrayhelpers.pas"/>
+        <UnitName Value="arrayhelpers"/>
+      </Item>
     </Files>
     <i18n>
       <EnableI18N Value="True"/>

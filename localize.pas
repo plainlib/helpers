@@ -43,7 +43,8 @@ type
 
     // Loads translations from a resource (or inline PoText) and applies them.
     // If AForm is specified only that form is translated; otherwise all forms and data modules.
-    class function ApplicationTranslate(const Language: string; AForm: TCustomForm = nil; PoText: string = ''): boolean; static;
+    class function ApplicationTranslate(AppName: string; const Language: string; AForm: TCustomForm = nil;
+      PoText: string = ''): boolean;
 
     // Extracts the language code from a .po file name (e.g., "app.ru.po" → "ru").
     class function GetLangCodeFromPoFile(const AFileName: string): string; static;
@@ -55,7 +56,7 @@ type
     class function LoadPackagePoResource(const AResourcePrefix, ALang: string): string;
 
     // Call this from the main application on startup and every time the language changes.
-    class procedure UpdatePackageTranslations(const APackagePrefix, ALang: string);
+    class procedure UpdatePackageTranslations(AppName: string; const APackagePrefix, ALang: string);
   end;
 
 var
@@ -107,7 +108,8 @@ begin
   Result := fbl;
 end;
 
-class function TLocalize.ApplicationTranslate(const Language: string; AForm: TCustomForm = nil; PoText: string = ''): boolean;
+class function TLocalize.ApplicationTranslate(AppName: string; const Language: string; AForm: TCustomForm = nil;
+  PoText: string = ''): boolean;
 var
   Res: TResourceStream;
   PoStringStream: TStringStream;
@@ -133,11 +135,11 @@ begin
         PoStringStream := TStringStream.Create('');
 
         try
-          Res := TResourceStream.Create(HInstance, 'trayslate.' + LangToUse, RT_RCDATA);
+          Res := TResourceStream.Create(HInstance, AppName + '.' + LangToUse, RT_RCDATA);
           LangFound := True;
         except
           LangToUse := 'en';
-          Res := TResourceStream.Create(HInstance, 'trayslate.en', RT_RCDATA);
+          Res := TResourceStream.Create(HInstance, AppName + '.en', RT_RCDATA);
           LangFound := False;
         end;
 
@@ -241,8 +243,7 @@ begin
   end;
 end;
 
-class function TLocalize.LoadPackagePoResource(const AResourcePrefix,
-  ALang: string): string;
+class function TLocalize.LoadPackagePoResource(const AResourcePrefix, ALang: string): string;
 var
   ResStream: TLazarusResourceStream;
   ResName: string;
@@ -264,13 +265,13 @@ begin
   end;
 end;
 
-class procedure TLocalize.UpdatePackageTranslations(const APackagePrefix, ALang: string);
+class procedure TLocalize.UpdatePackageTranslations(AppName: string; const APackagePrefix, ALang: string);
 var
   PoText: string;
 begin
   PoText := TLocalize.LoadPackagePoResource(APackagePrefix, ALang);
   if PoText <> '' then
-    TLocalize.ApplicationTranslate(ALang, nil, PoText);
+    TLocalize.ApplicationTranslate(AppName, ALang, nil, PoText);
 end;
 
 end.
