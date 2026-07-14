@@ -11,17 +11,16 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: PoBatch 1.0.0\n"
 
-msgctxt "checkupdates.newversion"
+#: checkupdates.newversion
+#, object-pascal-format
 msgid "New version available: %s. Open GitHub page to download?"
 msgstr "Nouvelle version disponible : %s. Ouvrir la page GitHub pour télécharger ?"
 
 #: checkupdates.newversioncheckerror
-msgctxt "checkupdates.newversioncheckerror"
 msgid "Error checking version:"
 msgstr "Erreur lors de la vérification de la version :"
 
 #: checkupdates.newversionuptodate
-msgctxt "checkupdates.newversionuptodate"
 msgid "Your version is up to date."
 msgstr "Votre version est à jour."
 

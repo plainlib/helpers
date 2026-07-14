@@ -15,7 +15,6 @@ interface
 uses
   Forms,
   Types,
-  Math,
   Controls,
   StdCtrls,
   SysUtils,
