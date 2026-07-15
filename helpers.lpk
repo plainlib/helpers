@@ -85,6 +85,10 @@ SOFTWARE.
         <Filename Value="arrayhelpers.pas"/>
         <UnitName Value="arrayhelpers"/>
       </Item>
+      <Item>
+        <Filename Value="pascalutils.pas"/>
+        <UnitName Value="pascalutils"/>
+      </Item>
     </Files>
     <i18n>
       <EnableI18N Value="True"/>
