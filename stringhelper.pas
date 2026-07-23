@@ -668,8 +668,14 @@ var
   Trimmed: string;
 begin
   Trimmed := Self.TrimLeft;
-  // Check first character
-  Result := (Trimmed <> string.Empty) and ((Trimmed[1] = '{') or (Trimmed[1] = '['));
+  // Check first character – must be object or array
+  if (Trimmed = '') or not ((Trimmed[1] = '{') or (Trimmed[1] = '[')) then
+    Exit(False);
+
+  // Trim trailing whitespace and verify matching closing bracket
+  Trimmed := Trimmed.TrimRight;
+  Result := ( (Trimmed[1] = '{') and (Trimmed[System.Length(Trimmed)] = '}') ) or
+            ( (Trimmed[1] = '[') and (Trimmed[System.Length(Trimmed)] = ']') );
 end;
 
 function TStringHelperEx.RemoveEmptyParams: string;
@@ -837,6 +843,9 @@ var
 begin
   Result := False;
   AFormatted := string.Empty;
+
+  if not Self.IsJson then
+    Exit;
 
   try
     // Try parse JSON
