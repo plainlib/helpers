@@ -32,6 +32,7 @@ type
     procedure RemoveSameNameValueFromMemo;
     function HeadersFromMemo: TStringList;
     function GetBottomSpace: integer;
+    procedure SaveToFileSafe(AFileName: string);
     procedure MemoTokenAtPos(APos: integer; const AExtraChars: unicodestring);
   end;
 
@@ -176,6 +177,23 @@ begin
       Result := 0;
   finally
     Bmp.Free;
+  end;
+end;
+
+procedure TMemoHelper.SaveToFileSafe(AFileName: string);
+begin
+  try
+    with TStringList.Create do
+    try
+      Text := Self.Text;
+      TrailingLineBreak := False;
+      SaveToFile(AFileName);
+    finally
+      Free;
+    end;
+  except
+    on E: Exception do
+      // Do nothing if can't save current text files
   end;
 end;
 
