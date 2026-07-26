@@ -11,6 +11,9 @@ unit base64utils;
 interface
 
 uses
+  {$IFDEF WINDOWS}
+  Windows,
+  {$ENDIF}
   Classes,
   SysUtils,
   base64,
@@ -140,10 +143,73 @@ var
   Writer: TFPWriterBMP;
   MS: TMemoryStream;
   Canvas: TFPImageCanvas;
+  Ext: string;
+  Icon: TIcon;
+  TempBmp: Graphics.TBitmap;
+  {$IFDEF WINDOWS}
+  hIcon: HWND;
+  {$ENDIF}
 begin
   Result := string.Empty;
 
   if not FileExists(FileName) then Exit;
+
+  // Handle .ico files using native LCL TIcon
+  Ext := LowerCase(ExtractFileExt(FileName));
+  if Ext = '.ico' then
+  begin
+    TempBmp := Graphics.TBitmap.Create;
+    MS := TMemoryStream.Create;
+    Writer := TFPWriterBMP.Create;
+    try
+      TempBmp.SetSize(16, 16);
+      TempBmp.Canvas.Brush.Color := clWhite;
+      TempBmp.Canvas.FillRect(Rect(0, 0, 16, 16));
+
+      {$IFDEF WINDOWS}
+      hIcon := LoadImage(
+        0,
+        PChar(FileName),
+        IMAGE_ICON,
+        16,
+        16,
+        LR_LOADFROMFILE
+      );
+
+      if hIcon <> 0 then
+      try
+        DrawIconEx(
+          TempBmp.Canvas.Handle,
+          0, 0,
+          hIcon,
+          16, 16,
+          0,
+          0,
+          DI_NORMAL
+        );
+      finally
+        DestroyIcon(hIcon);
+      end;
+      {$ELSE}
+      Icon := TIcon.Create;
+      try
+        Icon.LoadFromFile(FileName);
+        TempBmp.Canvas.StretchDraw(Rect(0, 0, 16, 16), Icon);
+      finally
+        Icon.Free;
+      end;
+      {$ENDIF}
+
+      TempBmp.SaveToStream(MS);
+      MS.Position := 0;
+      Result := StreamToBase64(MS);
+    finally
+      TempBmp.Free;
+      MS.Free;
+      Writer.Free;
+    end;
+    Exit;
+  end;
 
   Img := TFPMemoryImage.Create(0, 0);
   Resized := TFPMemoryImage.Create(16, 16);
@@ -152,7 +218,7 @@ begin
 
   try
     // Select the appropriate reader based on file extension
-    case LowerCase(ExtractFileExt(FileName)) of
+    case Ext of
       '.png': Reader := TFPReaderPNG.Create;
       '.bmp': Reader := TFPReaderBMP.Create;
       '.jpg', '.jpeg': Reader := TFPReaderJPEG.Create;
