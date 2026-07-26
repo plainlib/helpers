@@ -797,44 +797,52 @@ end;
 
 function TStringHelperEx.ExtractTextSample(MaxLen: integer = 500): string;
 var
-  CutPos, i, L: integer;
+  s: string;
+  L, CutPosChar, i: Integer;
+  ch: string;
 begin
-  Result := Self.Trim;
-  L := Result.Length;
-
-  // 1. If short enough
+  s := Self.Trim;
+  L := UTF8Length(s); // character count
   if L <= MaxLen then
-    Exit;
+    Exit(s);
 
-  // 2. Try cut by sentence end (. ! ?) + space
-  CutPos := 0;
+  // Try to cut at sentence boundary (. ! ?) followed by space
+  CutPosChar := 0;
   for i := MaxLen downto 1 do
   begin
-    if (Result[i] in ['.', '!', '?']) and (i < L) and (Result[i + 1] = SpaceChar) then
+    // get i-th character
+    ch := UTF8Copy(s, i, 1);
+    if (ch = '.') or (ch = '!') or (ch = '?') then
     begin
-      CutPos := i;
-      Break;
-    end;
-  end;
-
-  // 3. Try cut by space
-  if CutPos = 0 then
-  begin
-    for i := MaxLen downto 1 do
-    begin
-      if Result[i] = SpaceChar then
+      // check next character is space, if exists
+      if (i < L) and (UTF8Copy(s, i+1, 1) = ' ') then
       begin
-        CutPos := i;
+        CutPosChar := i;
         Break;
       end;
     end;
   end;
 
-  // 4. Fallback
-  if CutPos = 0 then
-    CutPos := MaxLen;
+  // If not found, try to cut at space
+  if CutPosChar = 0 then
+  begin
+    for i := MaxLen downto 1 do
+    begin
+      if UTF8Copy(s, i, 1) = ' ' then
+      begin
+        CutPosChar := i;
+        Break;
+      end;
+    end;
+  end;
 
-  Result := System.Copy(Result, 1, CutPos).Trim;
+  // Fallback
+  if CutPosChar = 0 then
+    CutPosChar := MaxLen;
+
+  Result := UTF8Copy(s, 1, CutPosChar);
+  // Optionally trim trailing space (already done by cutting at space or punctuation+space)
+  Result := Result.Trim; // Trim works on bytes, but trailing spaces are ASCII, safe.
 end;
 
 function TStringHelperEx.TryFormatJson(out AFormatted: string): boolean;
