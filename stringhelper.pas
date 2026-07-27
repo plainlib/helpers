@@ -183,6 +183,14 @@ type
     /// Removes leading space pairs (2 spaces = 1 indent level) and returns the removed level
     function ExtractIndent(out AIndentLevel: integer): string;
 
+    // Returns substring containing all whitespace characters at the beginning
+    function GetLeadingWhitespace: string;
+
+    // Returns substring containing all whitespace characters at the end
+    function GetTrailingWhitespace: string;
+
+    // Adjusts Target so that its leading and trailing whitespace exactly matches Self
+    function PreserveIndentation(const Source: string): string;
   end;
 
   { TCaptionHelper }
@@ -674,8 +682,8 @@ begin
 
   // Trim trailing whitespace and verify matching closing bracket
   Trimmed := Trimmed.TrimRight;
-  Result := ( (Trimmed[1] = '{') and (Trimmed[System.Length(Trimmed)] = '}') ) or
-            ( (Trimmed[1] = '[') and (Trimmed[System.Length(Trimmed)] = ']') );
+  Result := ((Trimmed[1] = '{') and (Trimmed[System.Length(Trimmed)] = '}')) or ((Trimmed[1] = '[') and
+    (Trimmed[System.Length(Trimmed)] = ']'));
 end;
 
 function TStringHelperEx.RemoveEmptyParams: string;
@@ -798,7 +806,7 @@ end;
 function TStringHelperEx.ExtractTextSample(MaxLen: integer = 500): string;
 var
   s: string;
-  L, CutPosChar, i: Integer;
+  L, CutPosChar, i: integer;
   ch: string;
 begin
   s := Self.Trim;
@@ -815,7 +823,7 @@ begin
     if (ch = '.') or (ch = '!') or (ch = '?') then
     begin
       // check next character is space, if exists
-      if (i < L) and (UTF8Copy(s, i+1, 1) = ' ') then
+      if (i < L) and (UTF8Copy(s, i + 1, 1) = ' ') then
       begin
         CutPosChar := i;
         Break;
@@ -1476,6 +1484,32 @@ begin
     Inc(i, 2);
   end;
   Result := System.Copy(Self, i, System.Length(Self) - i + 1);
+end;
+
+function TStringHelperEx.GetLeadingWhitespace: string;
+var
+  i: integer;
+begin
+  i := 1;
+  while (i <= System.Length(Self)) and (Self[i] in [#9, #10, #13, #32]) do
+    Inc(i);
+  Result := System.Copy(Self, 1, i - 1);
+end;
+
+function TStringHelperEx.GetTrailingWhitespace: string;
+var
+  i: integer;
+begin
+  i := System.Length(Self);
+  while (i >= 1) and (Self[i] in [#9, #10, #13, #32]) do
+    Dec(i);
+  Result := System.Copy(Self, i + 1, MaxInt);
+end;
+
+function TStringHelperEx.PreserveIndentation(const Source: string): string;
+begin
+  // Trim removes all #0..#32 from both ends, exactly what we need
+  Result := Source.GetLeadingWhitespace + Self.Trim + Source.GetTrailingWhitespace;
 end;
 
 {%EndRegion}

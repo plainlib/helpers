@@ -144,7 +144,6 @@ var
   MS: TMemoryStream;
   Canvas: TFPImageCanvas;
   Ext: string;
-  Icon: TIcon;
   TempBmp: Graphics.TBitmap;
   {$IFDEF WINDOWS}
   hIcon: HWND;
