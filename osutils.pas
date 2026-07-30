@@ -22,6 +22,7 @@ uses
   LCLIntf,
   LCLType,
   LazUTF8,
+  PasZLib,
   Process,
   Dialogs,
   {$IFDEF WINDOWS}
@@ -54,6 +55,8 @@ type
     class function FileEndsWithLineBreak(const FileName: string): boolean;
     class function LoadFileAsBytes(const FileName: string): TBytes;
     class function GetConsoleEncoding: string;
+    class function CompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
+    class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
     {$IFDEF WINDOWS}
     class procedure RegAutoStart(const AEnable: boolean; const AppName: string); static;
     class function GetTimestamp: int64; static;
@@ -62,6 +65,9 @@ type
   end;
 
 implementation
+
+const
+MAX_ALLOWED_UNCOMPRESSED = 512 * 1024 * 1024;
 
 class function TOS.SetCursorTo(Control: TControl; const ResName: string; CursorIndex: integer = 1001): boolean;
 var
@@ -534,6 +540,92 @@ begin
   finally
     Output.Free;
     Process.Free;
+  end;
+end;
+
+class function TOS.CompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
+var
+  Source, Dest: pchar;
+  SourceLen, DestLen: cardinal;
+  MemPtr: pchar;
+begin
+  if InputStream.Size = 0 then
+  begin
+    Result := TMemoryStream.Create;
+    Exit;
+  end;
+
+  InputStream.Position := 0;
+  SourceLen := InputStream.Size;
+  Source := InputStream.Memory;
+
+  Result := TMemoryStream.Create;
+  try
+    // calculate maximum possible compressed size
+    DestLen := SourceLen + ((SourceLen + 7) shr 3) + ((SourceLen + 63) shr 6) + 11;
+
+    // allocate buffer (4 bytes for original size header + compressed data)
+    Result.SetSize(4 + DestLen);
+
+    MemPtr := Result.Memory;
+
+    // leave 4 bytes at start for OriginalSize
+    Dest := MemPtr;
+    Inc(pbyte(Dest), 4);
+
+    // compress updates DestLen with actual compressed size
+    if compress(Dest, DestLen, Source, SourceLen) <> Z_OK then
+      raise Exception.Create('Compression failed');
+
+    // store original (uncompressed) size in the first 4 bytes
+    PCardinal(MemPtr)^ := SourceLen;
+
+    // shrink buffer to real compressed size
+    Result.SetSize(4 + DestLen);
+    Result.Position := 0;
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+class function TOS.DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
+var
+  Source, Dest: pchar;
+  OriginalSize, DestLen: cardinal;
+  MemPtr: pchar;
+begin
+  if InputStream.Size = 0 then
+  begin
+    Result := TMemoryStream.Create;
+    Exit;
+  end;
+
+  InputStream.Position := 0;
+  MemPtr := InputStream.Memory;
+
+  // read original uncompressed size
+  OriginalSize := PCardinal(MemPtr)^;
+
+  if (InputStream.Size < 4 + 1) or (OriginalSize = 0) or (OriginalSize > MAX_ALLOWED_UNCOMPRESSED) then
+    raise Exception.Create('Operation failed');
+
+  Source := MemPtr;
+  Inc(pbyte(Source), 4); // compressed data starts after 4 bytes
+
+  Result := TMemoryStream.Create;
+  try
+    DestLen := OriginalSize;
+    Result.SetSize(DestLen);
+    Dest := Result.Memory;
+
+    if uncompress(Dest, DestLen, Source, InputStream.Size - 4) <> Z_OK then
+      raise Exception.Create('Operation failed');
+
+    Result.Position := 0;
+  except
+    Result.Free;
+    raise;
   end;
 end;
 
