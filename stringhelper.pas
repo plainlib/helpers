@@ -191,6 +191,10 @@ type
 
     // Adjusts Target so that its leading and trailing whitespace exactly matches Self
     function PreserveIndentation(const Source: string): string;
+
+    // Decode a single HTML entity (like '&#39;' or '&amp;') into the corresponding character.
+    // Returns the decoded character, or empty string if the entity is invalid or unknown.
+    function DecodeHtmlEntity: string;
   end;
 
   { TCaptionHelper }
@@ -1510,6 +1514,34 @@ function TStringHelperEx.PreserveIndentation(const Source: string): string;
 begin
   // Trim removes all #0..#32 from both ends, exactly what we need
   Result := Source.GetLeadingWhitespace + Self.Trim + Source.GetTrailingWhitespace;
+end;
+
+function TStringHelperEx.DecodeHtmlEntity: string;
+var
+  Code: Integer;
+  Hex: string;
+begin
+  Result := '';
+  // A valid entity must start with '&' and end with ';'
+  if (System.Length(Self) < 2) or (Self[1] <> '&') or (Self[System.Length(Self)] <> ';') then
+    Exit;
+
+  // Numeric decimal entity: &#DEC;
+  if (System.Length(Self) > 3) and (Self[2] = '#') and (Self[3] <> 'x') then
+  begin
+    if TryStrToInt(System.Copy(Self, 3, System.Length(Self) - 3), Code) and (Code >= 0) then
+      Result := Chr(Code);
+    Exit;
+  end;
+
+  // Numeric hex entity: &#xHEX;
+  if (System.Length(Self) > 4) and (Self[2] = '#') and (Self[3] = 'x') then
+  begin
+    Hex := System.Copy(Self, 4, System.Length(Self) - 4);
+    if (Hex <> '') and TryStrToInt('$' + Hex, Code) and (Code >= 0) then
+      Result := Chr(Code);
+    Exit;
+  end;
 end;
 
 {%EndRegion}
