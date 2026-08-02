@@ -44,7 +44,7 @@ type
     // Loads translations from a resource (or inline PoText) and applies them.
     // If AForm is specified only that form is translated; otherwise all forms and data modules.
     class function ApplicationTranslate(AppName: string; const Language: string; AForm: TCustomForm = nil;
-      PoText: string = ''): boolean;
+      PoText: string = ''; ATranslateResStrings: boolean = True): boolean;
 
     // Extracts the language code from a .po file name (e.g., "app.ru.po" → "ru").
     class function GetLangCodeFromPoFile(const AFileName: string): string; static;
@@ -56,7 +56,12 @@ type
     class function LoadPackagePoResource(const AResourcePrefix, ALang: string): string;
 
     // Call this from the main application on startup and every time the language changes.
-    class procedure UpdatePackageTranslations(AppName: string; const APackagePrefix, ALang: string);
+    // AUnitNames - list of unit names whose resource strings should be translated (package units).
+    class procedure UpdatePackageTranslations(AppName: string; const APackagePrefix, ALang: string;
+      const AUnitNames: array of string);
+
+    // Translates resource strings of specified units using PO text (without touching global strings).
+    class function TranslateUnitsFromPoText(const AUnitNames: array of string; const PoText: string): boolean;
   end;
 
 var
@@ -109,7 +114,7 @@ begin
 end;
 
 class function TLocalize.ApplicationTranslate(AppName: string; const Language: string; AForm: TCustomForm = nil;
-  PoText: string = ''): boolean;
+  PoText: string = ''; ATranslateResStrings: boolean = True): boolean;
 var
   Res: TResourceStream;
   PoStringStream: TStringStream;
@@ -149,7 +154,7 @@ begin
       else
         PoFile.ReadPOText(PoText);
 
-      if not Assigned(AForm) then
+      if ATranslateResStrings and not Assigned(AForm) then
         Result := TranslateResourceStrings(PoFile);
 
       if Result or Assigned(AForm) then
@@ -265,13 +270,37 @@ begin
   end;
 end;
 
-class procedure TLocalize.UpdatePackageTranslations(AppName: string; const APackagePrefix, ALang: string);
+class procedure TLocalize.UpdatePackageTranslations(AppName: string; const APackagePrefix, ALang: string;
+  const AUnitNames: array of string);
 var
   PoText: string;
 begin
   PoText := TLocalize.LoadPackagePoResource(APackagePrefix, ALang);
   if PoText <> '' then
-    TLocalize.ApplicationTranslate(AppName, ALang, nil, PoText);
+  begin
+    TLocalize.ApplicationTranslate(AppName, ALang, nil, PoText, False);
+    TLocalize.TranslateUnitsFromPoText(AUnitNames, PoText);
+  end;
+end;
+
+class function TLocalize.TranslateUnitsFromPoText(const AUnitNames: array of string; const PoText: string): boolean;
+var
+  PoFile: TPOFile;
+  PUnitName: string;
+begin
+  Result := False;
+  if Length(AUnitNames) = 0 then
+    Exit;
+
+  PoFile := TPOFile.Create(False);
+  try
+    PoFile.ReadPOText(PoText);
+    for PUnitName in AUnitNames do
+      TranslateUnitResourceStrings(PUnitName, PoFile);
+    Result := True;
+  finally
+    PoFile.Free;
+  end;
 end;
 
 end.
