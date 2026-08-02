@@ -1542,6 +1542,20 @@ begin
       Result := Chr(Code);
     Exit;
   end;
+
+  // Decode common named HTML entities
+  if Self = '&lt;' then
+    Result := '<'
+  else if Self = '&gt;' then
+    Result := '>'
+  else if Self = '&amp;' then
+    Result := '&'
+  else if Self = '&quot;' then
+    Result := '"'
+  else if Self = '&apos;' then
+    Result := ''''
+  else if Self = '&nbsp;' then
+    Result := Chr(160);
 end;
 
 {%EndRegion}
