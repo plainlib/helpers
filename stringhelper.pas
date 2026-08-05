@@ -54,10 +54,10 @@ type
     /// Decodes an HTTP/URL encoded string (e.g. %20 → space, + → space).
     function HTTPDecode: string;
 
-    /// Truncates a UTF‑8 string to at most MaxBytes, optionally taking into account later encoding expansion.
+    /// Truncates a UTF-8 string to at most MaxBytes, optionally taking into account later encoding expansion.
     function Utf8Truncate(MaxBytes: integer; Encode: boolean): string;
 
-    /// Truncates a UTF‑8 string by measuring the actual encoded length of each character, then returns the raw UTF‑8 prefix.
+    /// Truncates a UTF-8 string by measuring the actual encoded length of each character, then returns the raw UTF-8 prefix.
     function Utf8TruncateWithEncoding(MaxBytes: integer; Encode: boolean): string;
 
     /// Returns True if the trimmed string starts with '{' or '[', indicating a possible JSON object or array.
@@ -66,7 +66,7 @@ type
     /// Removes empty string fields from a JSON object (especially inside "params" and "lang") or empty URL parameters.
     function RemoveEmptyParams: string;
 
-    /// Saves the string content to a UTF‑8 text file with the given filename.
+    /// Saves the string content to a UTF-8 text file with the given filename.
     procedure SaveStringToFile(const FileName: string);
 
     /// Saves the string to a temporary file and opens it with the default text editor.
@@ -78,7 +78,7 @@ type
     /// Extracts a text sample of at most MaxLen characters, trying to break at a sentence end or space.
     function ExtractTextSample(MaxLen: integer = 500): string;
 
-    /// Tries to parse and pretty‑print the string as JSON; returns True on success and the formatted result in AFormatted.
+    /// Tries to parse and pretty-print the string as JSON; returns True on success and the formatted result in AFormatted.
     function TryFormatJson(out AFormatted: string): boolean;
 
     /// Tries to parse a string in the form "IP:Port" (e.g. 127.0.0.1:8080) and returns the valid IP and port.
@@ -192,9 +192,33 @@ type
     // Adjusts Target so that its leading and trailing whitespace exactly matches Self
     function PreserveIndentation(const Source: string): string;
 
+    // Replace all occurrences of OldPattern with NewPattern.
+    function ReplaceAll(const OldPattern, NewPattern: string; IgnoreCase: boolean = False): string;
+
     // Decode a single HTML entity (like '&#39;' or '&amp;') into the corresponding character.
     // Returns the decoded character, or empty string if the entity is invalid or unknown.
     function DecodeHtmlEntity: string;
+
+    // Encode special HTML characters into entities.
+    function HtmlEncode: string;
+
+    // Decode HTML entities back to characters.
+    function HtmlDecode: string;
+
+    // Percent-encode the string for safe URL inclusion.
+    function UrlEncode: string;
+
+    // Decode a percent-encoded URL string.
+    function UrlDecode: string;
+
+    // Replace all matches of Pattern with Replacement using case-insensitive regex.
+    function RegexReplace(const Pattern, Replacement: string): string;
+
+    // Check if the string matches the given regular expression pattern.
+    function RegexMatch(const Pattern: string): boolean;
+
+    // Extract substring between StartMarker and EndMarker.
+    function ExtractBetween(const StartMarker, EndMarker: string): string;
   end;
 
   { TCaptionHelper }
@@ -205,7 +229,7 @@ type
 
   { String Ex Methods }
 
-/// Searches backwards for SubStr in S starting at Offset; returns 1‑based position or 0 if not found.
+/// Searches backwards for SubStr in S starting at Offset; returns 1-based position or 0 if not found.
 function PosExReverse(const SubStr, S: unicodestring; Offset: SizeInt = -1): SizeInt;
 
 /// Returns the longest string from an array of strings.
@@ -1516,9 +1540,57 @@ begin
   Result := Source.GetLeadingWhitespace + Self.Trim + Source.GetTrailingWhitespace;
 end;
 
+function TStringHelperEx.ReplaceAll(const OldPattern, NewPattern: string; IgnoreCase: boolean = False): string;
+var
+  SearchStr, SearchPattern: string;
+  P, OldLen, Offset, SearchLen: integer;
+begin
+  Result := Self;
+  if OldPattern = '' then Exit;
+  OldLen := System.Length(OldPattern);
+
+  if IgnoreCase then
+  begin
+    SearchStr := LowerCase(Result);
+    SearchPattern := LowerCase(OldPattern);
+  end
+  else
+  begin
+    SearchStr := Result;
+    SearchPattern := OldPattern;
+  end;
+
+  Offset := 1;
+  SearchLen := System.Length(SearchStr) - Offset + 1;
+  if SearchLen > 0 then
+    P := Pos(SearchPattern, System.Copy(SearchStr, Offset, SearchLen))
+  else
+    P := 0;
+
+  while P > 0 do
+  begin
+    P := P + Offset - 1;
+    Delete(Result, P, OldLen);
+    System.Insert(NewPattern, Result, P);
+
+    Offset := P + System.Length(NewPattern);
+
+    if IgnoreCase then
+      SearchStr := LowerCase(Result)
+    else
+      SearchStr := Result;
+
+    SearchLen := System.Length(SearchStr) - Offset + 1;
+    if SearchLen > 0 then
+      P := Pos(SearchPattern, System.Copy(SearchStr, Offset, SearchLen))
+    else
+      P := 0;
+  end;
+end;
+
 function TStringHelperEx.DecodeHtmlEntity: string;
 var
-  Code: Integer;
+  Code: integer;
   Hex: string;
 begin
   Result := '';
@@ -1556,6 +1628,111 @@ begin
     Result := ''''
   else if Self = '&nbsp;' then
     Result := Chr(160);
+end;
+
+function TStringHelperEx.HtmlEncode: string;
+begin
+  Result := Self;
+  if Result = '' then Exit;
+  // Order matters: & must be first to avoid double encoding
+  Result := Result.ReplaceAll('&', '&amp;', False);
+  Result := Result.ReplaceAll('<', '&lt;', False);
+  Result := Result.ReplaceAll('>', '&gt;', False);
+  Result := Result.ReplaceAll('"', '&quot;', False);
+  Result := Result.ReplaceAll('''', '&#39;', False);
+end;
+
+function TStringHelperEx.HtmlDecode: string;
+begin
+  Result := Self;
+  if Result = '' then Exit;
+  Result := Result.ReplaceAll('&lt;', '<', False);
+  Result := Result.ReplaceAll('&gt;', '>', False);
+  Result := Result.ReplaceAll('&quot;', '"', False);
+  Result := Result.ReplaceAll('&#39;', '''', False);
+  Result := Result.ReplaceAll('&amp;', '&', False); // last to avoid double decoding
+end;
+
+function TStringHelperEx.UrlEncode: string;
+var
+  i: integer;
+  c: char;
+begin
+  Result := '';
+  for i := 1 to System.Length(Self) do
+  begin
+    c := Self[i];
+    if c in ['A'..'Z', 'a'..'z', '0'..'9', '-', '_', '.', '~'] then
+      Result := Result + c
+    else
+      Result := Result + '%' + SysUtils.IntToHex(Ord(c), 2);
+  end;
+end;
+
+function TStringHelperEx.UrlDecode: string;
+var
+  i: integer;
+  HexStr: string;
+  Code: integer;
+begin
+  Result := '';
+  i := 1;
+  while i <= System.Length(Self) do
+  begin
+    if (Self[i] = '%') and (i + 2 <= System.Length(Self)) then
+    begin
+      HexStr := '$' + System.Copy(Self, i + 1, 2);
+      if TryStrToInt(HexStr, Code) then
+      begin
+        Result := Result + Chr(Code);
+        Inc(i, 3);
+        Continue;
+      end;
+    end;
+    Result := Result + Self[i];
+    Inc(i);
+  end;
+end;
+
+function TStringHelperEx.RegexReplace(const Pattern, Replacement: string): string;
+var
+  RegExpr: TRegExpr;
+begin
+  RegExpr := TRegExpr.Create;
+  try
+    RegExpr.Expression := Pattern;
+    RegExpr.ModifierI := True;
+    Result := RegExpr.Replace(Self, Replacement, True);
+  finally
+    RegExpr.Free;
+  end;
+end;
+
+function TStringHelperEx.RegexMatch(const Pattern: string): boolean;
+var
+  RegExpr: TRegExpr;
+begin
+  RegExpr := TRegExpr.Create;
+  try
+    RegExpr.Expression := Pattern;
+    RegExpr.ModifierI := True;
+    Result := RegExpr.Exec(Self);
+  finally
+    RegExpr.Free;
+  end;
+end;
+
+function TStringHelperEx.ExtractBetween(const StartMarker, EndMarker: string): string;
+var
+  StartPos, EndPos: integer;
+begin
+  Result := '';
+  StartPos := Pos(StartMarker, Self);
+  if StartPos = 0 then Exit;
+  StartPos := StartPos + System.Length(StartMarker);
+  EndPos := Pos(EndMarker, System.Copy(Self, StartPos, MaxInt));
+  if EndPos = 0 then Exit;
+  Result := System.Copy(Self, StartPos, EndPos - 1);
 end;
 
 {%EndRegion}
