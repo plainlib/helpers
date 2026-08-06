@@ -55,6 +55,10 @@ type
     class function FileEndsWithLineBreak(const FileName: string): boolean;
     class function LoadFileAsBytes(const FileName: string): TBytes;
     class function GetConsoleEncoding: string;
+    class function GetSettingsDirectory(const AppName: string; const FileName: string = '';
+      const SettingsFile: string = 'form_settings.json'): string;
+    class procedure Log(const AppName, Msg: string; const LogFileName: string = 'exception.log');
+    class function GetExceptionStackTrace(E: Exception): string;
     class function CompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
     class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
     {$IFDEF WINDOWS}
@@ -67,7 +71,7 @@ type
 implementation
 
 const
-MAX_ALLOWED_UNCOMPRESSED = 512 * 1024 * 1024;
+  MAX_ALLOWED_UNCOMPRESSED = 512 * 1024 * 1024;
 
 class function TOS.SetCursorTo(Control: TControl; const ResName: string; CursorIndex: integer = 1001): boolean;
 var
@@ -540,6 +544,83 @@ begin
   finally
     Output.Free;
     Process.Free;
+  end;
+end;
+
+class function TOS.GetSettingsDirectory(const AppName: string; const FileName: string = '';
+  const SettingsFile: string = 'form_settings.json'): string;
+  {$IFDEF WINDOWS}
+var
+  baseDir: string;
+  exeDir: string;
+  {$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  // Get directory where exe is located
+  exeDir := ExtractFilePath(ParamStr(0));
+
+  // Portable mode: settings file exists near exe
+  if FileExists(exeDir + SettingsFile) then
+  begin
+    Result := IncludeTrailingPathDelimiter(exeDir) + FileName;
+    Exit;
+  end;
+
+  // Default mode: use LOCALAPPDATA or APPDATA
+  baseDir := SysUtils.GetEnvironmentVariable('LOCALAPPDATA');
+  if baseDir = '' then
+    baseDir := SysUtils.GetEnvironmentVariable('APPDATA');
+
+  Result := IncludeTrailingPathDelimiter(baseDir) + AppName + PathDelim + FileName;
+  {$ELSE}
+  // Unix-like systems: use ~/.config/<AppName>
+  Result := IncludeTrailingPathDelimiter(GetUserDir) + '.config/' + AppName + '/' + FileName;
+  {$ENDIF}
+end;
+
+class procedure TOS.Log(const AppName, Msg: string; const LogFileName: string = 'exception.log');
+var
+  logDir: string;
+  logFile: string;
+  f: TextFile;
+begin
+  // Get the directory for application data
+  logDir := GetSettingsDirectory(AppName);
+
+  // Ensure the directory exists
+  if not ForceDirectories(logDir) then
+    Exit; // Cannot create directory, silent fail (можно бросить исключение при желании)
+
+  logFile := IncludeTrailingPathDelimiter(logDir) + LogFileName;
+
+  AssignFile(f, logFile);
+  try
+    if FileExists(logFile) then
+      Append(f)
+    else
+      Rewrite(f);
+    WriteLn(f, FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', Now) + ' ' + Msg);
+  finally
+    CloseFile(f);
+  end;
+end;
+
+class function TOS.GetExceptionStackTrace(E: Exception): string;
+var
+  I: integer;
+begin
+  Result := 'Exception address: ' + BackTraceStrFunc(ExceptAddr) + LineEnding;
+
+  if E <> nil then
+  begin
+    Result := Result + 'Exception class: ' + E.ClassName + LineEnding + 'Message: ' + E.Message + LineEnding;
+  end;
+
+  if ExceptFrameCount > 0 then
+  begin
+    Result := Result + 'Stack trace:' + LineEnding;
+    for I := 0 to ExceptFrameCount - 1 do
+      Result := Result + '  ' + BackTraceStrFunc(ExceptFrames[I]) + LineEnding;
   end;
 end;
 
