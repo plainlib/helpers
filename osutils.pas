@@ -318,23 +318,41 @@ begin
 end;
 
 class procedure TOS.BringToFrontNoFocus(AForm: TForm);
+{$IFDEF WINDOWS}
+var
+  ForegroundWnd: HWND;
+  ForegroundThreadID, OurThreadID: DWORD;
+{$ENDIF}
 begin
   {$IFDEF WINDOWS}
-    SetWindowPos(
-      AForm.Handle,
-      HWND_TOPMOST,
-      0, 0, 0, 0,
-      SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE or SWP_SHOWWINDOW
-    );
+    // Restore if minimized
+    if IsIconic(AForm.Handle) then
+      ShowWindow(AForm.Handle, SW_RESTORE);
 
-    SetWindowPos(
-      AForm.Handle,
-      HWND_NOTOPMOST,
-      0, 0, 0, 0,
-      SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE
-    );
+    ForegroundWnd := GetForegroundWindow;
+    if (ForegroundWnd <> 0) and (ForegroundWnd <> AForm.Handle) then
+    begin
+      ForegroundThreadID := GetWindowThreadProcessId(ForegroundWnd, nil);
+      OurThreadID := GetCurrentThreadId;
+      if ForegroundThreadID <> OurThreadID then
+      begin
+        // Temporarily attach our input queue to the foreground thread's queue
+        AttachThreadInput(OurThreadID, ForegroundThreadID, True);
+        try
+          // Now we are allowed to place our window above the foreground window
+          SetWindowPos(AForm.Handle, HWND_TOP, 0, 0, 0, 0,
+                       SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE or SWP_SHOWWINDOW);
+        finally
+          AttachThreadInput(OurThreadID, ForegroundThreadID, False);
+        end;
+        Exit; // all done
+      end;
+    end;
+    // Fallback: foreground window is ours or doesn't exist, just raise normally
+    SetWindowPos(AForm.Handle, HWND_TOP, 0, 0, 0, 0,
+                 SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE or SWP_SHOWWINDOW);
   {$ELSE}
-  AForm.BringToFront;
+    AForm.BringToFront;
   {$ENDIF}
 end;
 
