@@ -61,6 +61,7 @@ type
     class function GetExceptionStackTrace(E: Exception): string;
     class function CompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
     class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
+    class procedure ForceForegroundWindow(hWnd: Handle);
     {$IFDEF WINDOWS}
     class procedure RegAutoStart(const AEnable: boolean; const AppName: string); static;
     class function GetTimestamp: int64; static;
@@ -708,6 +709,28 @@ begin
     Result.Free;
     raise;
   end;
+end;
+
+class procedure TOS.ForceForegroundWindow(hWnd: Handle);
+{$IFDEF WINDOWS}
+var
+  ForegroundThreadID: DWORD;
+  ThisThreadID: DWORD;
+{$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  if GetForegroundWindow = hWnd then Exit;
+  ForegroundThreadID := GetWindowThreadProcessId(GetForegroundWindow, nil);
+  ThisThreadID := GetWindowThreadProcessId(hWnd, nil);
+  if ForegroundThreadID <> ThisThreadID then
+  begin
+    AttachThreadInput(ThisThreadID, ForegroundThreadID, True);
+    SetForegroundWindow(hWnd);
+    AttachThreadInput(ThisThreadID, ForegroundThreadID, False);
+  end
+  else
+    SetForegroundWindow(hWnd);
+  {$ENDIF}
 end;
 
 {$IFDEF WINDOWS}
