@@ -886,7 +886,7 @@ var
   JsonData: TJSONData;
 begin
   Result := False;
-  AFormatted := string.Empty;
+  AFormatted := Self;
 
   if not Self.IsJson then
     Exit;
