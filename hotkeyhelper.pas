@@ -36,35 +36,7 @@ type
     function IsSystemKey: boolean;
   end;
 
-  TMouseMode = (
-    mmShowTranslateButton,
-    mmShowBalloonTranslation,
-    mmShowPopupTranslation,
-    mmShowMainWindow
-    );
-
 const
-  {$IFDEF WINDOWS}
-  HOTKEY_APP = 1;
-  HOTKEY_TRANS_SWAP = 2;
-  HOTKEY_TRANS_FROM_CLIPBOARD = 3;
-  HOTKEY_TRANS_CLIPBOARD = 4;
-  HOTKEY_TRANS_CLIPBOARD_POPUP = 5;
-  HOTKEY_TRANS_FROM_CONTROL = 6;
-  HOTKEY_TRANS_CONTROL = 7;
-  HOTKEY_TRANS_CONTROL_POPUP = 8;
-
-  HOTKEY_RECENT1 = 11;
-  HOTKEY_RECENT2 = 12;
-  HOTKEY_RECENT3 = 13;
-  HOTKEY_RECENT4 = 14;
-  HOTKEY_RECENT5 = 15;
-  HOTKEY_RECENT6 = 16;
-  HOTKEY_RECENT7 = 17;
-  HOTKEY_RECENT8 = 18;
-  HOTKEY_RECENT9 = 19;
-  {$ENDIF}
-
   // Modifier flags for THotKeyData.Modifiers
   HOTKEY_CTRL = 1 shl 1; // 2
   HOTKEY_SHIFT = 1 shl 2; // 4
