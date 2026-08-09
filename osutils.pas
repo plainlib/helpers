@@ -61,7 +61,7 @@ type
     class function GetExceptionStackTrace(E: Exception): string;
     class function CompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
     class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
-    class procedure ForceForegroundWindow(hWnd: Handle);
+    class procedure ForceForegroundWindow(hWnd: THandle);
     {$IFDEF WINDOWS}
     class procedure RegAutoStart(const AEnable: boolean; const AppName: string); static;
     class function GetTimestamp: int64; static;
@@ -352,7 +352,7 @@ begin
     SetWindowPos(AForm.Handle, HWND_TOP, 0, 0, 0, 0,
                  SWP_NOMOVE or SWP_NOSIZE or SWP_NOACTIVATE or SWP_SHOWWINDOW);
   {$ELSE}
-    AForm.BringToFront;
+  AForm.BringToFront;
   {$ENDIF}
 end;
 
@@ -729,7 +729,7 @@ begin
   end;
 end;
 
-class procedure TOS.ForceForegroundWindow(hWnd: Handle);
+class procedure TOS.ForceForegroundWindow(hWnd: THandle);
 {$IFDEF WINDOWS}
 var
   ForegroundThreadID: DWORD;

@@ -147,6 +147,8 @@ var
   TempBmp: Graphics.TBitmap;
   {$IFDEF WINDOWS}
   hIcon: HWND;
+  {$ELSE}
+  Icon: TIcon;
   {$ENDIF}
 begin
   Result := string.Empty;
