@@ -59,7 +59,7 @@ type
       const SettingsFile: string = 'form_settings.json'): string;
     class procedure Log(const AppName, Msg: string; const LogFileName: string = 'exception.log');
     class function GetExceptionStackTrace(E: Exception): string;
-    class function CompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
+    class function CompressMemoryStream(InputStream: TMemoryStream; ALevel: integer = Z_DEFAULT_COMPRESSION): TMemoryStream;
     class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
     class procedure ForceForegroundWindow(hWnd: THandle);
     {$IFDEF WINDOWS}
@@ -643,7 +643,7 @@ begin
   end;
 end;
 
-class function TOS.CompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
+class function TOS.CompressMemoryStream(InputStream: TMemoryStream; ALevel: integer = Z_DEFAULT_COMPRESSION): TMemoryStream;
 var
   Source, Dest: pchar;
   SourceLen, DestLen: cardinal;
@@ -661,26 +661,26 @@ begin
 
   Result := TMemoryStream.Create;
   try
-    // calculate maximum possible compressed size
+    // Calculate maximum possible compressed size
     DestLen := SourceLen + ((SourceLen + 7) shr 3) + ((SourceLen + 63) shr 6) + 11;
 
-    // allocate buffer (4 bytes for original size header + compressed data)
+    // Allocate buffer: 4 bytes for original size + compressed data
     Result.SetSize(4 + DestLen);
 
     MemPtr := Result.Memory;
 
-    // leave 4 bytes at start for OriginalSize
+    // Skip the first 4 bytes reserved for OriginalSize
     Dest := MemPtr;
     Inc(pbyte(Dest), 4);
 
-    // compress updates DestLen with actual compressed size
-    if compress(Dest, DestLen, Source, SourceLen) <> Z_OK then
+    // Compress with the specified level; DestLen is updated to actual size
+    if compress2(Dest, DestLen, Source, SourceLen, ALevel) <> Z_OK then
       raise Exception.Create('Compression failed');
 
-    // store original (uncompressed) size in the first 4 bytes
+    // Store original (uncompressed) size in the first 4 bytes
     PCardinal(MemPtr)^ := SourceLen;
 
-    // shrink buffer to real compressed size
+    // Shrink buffer to the real compressed size
     Result.SetSize(4 + DestLen);
     Result.Position := 0;
   except
