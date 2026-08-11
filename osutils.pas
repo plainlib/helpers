@@ -42,6 +42,7 @@ type
   TOS = class
   public
     class function SetCursorTo(Control: TControl; const ResName: string; CursorIndex: integer = 1001): boolean; static;
+    class procedure SetFormSmallIcon(AForm: TForm; const AIcon: TIcon);
     class function SetFileTypeIcon(const Ext: string; IconIndex: integer): boolean; static;
     class procedure BringToFrontNoFocus(AForm: TForm); static;
     class function IsWindows7: boolean; static;
@@ -314,6 +315,34 @@ begin
       Exit;
     end;
   end;
+  {$ENDIF}
+end;
+
+class procedure TOS.SetFormSmallIcon(AForm: TForm; const AIcon: TIcon);
+{$IFDEF WINDOWS}
+var
+  BigIcon: HICON;
+{$ENDIF}
+begin
+  // Apply the new icon (or restore default if nil)
+  if AIcon = nil then
+    AForm.Icon.LoadFromResourceName(HInstance, 'MAINICON')
+  else
+    AForm.Icon.Assign(AIcon);
+
+  {$IFDEF WINDOWS}
+  // Retrieve the cached big icon handle (stored in Tag on first call)
+  {$PUSH}{$R-}
+  BigIcon := HICON(AForm.Tag);
+  if BigIcon = 0 then
+  begin
+    BigIcon := SendMessage(AForm.Handle, WM_GETICON, ICON_BIG, 0);
+    AForm.Tag := PtrInt(BigIcon);   // save as signed (bits preserved, no range check)
+  end;
+  // Restore the big icon (taskbar) because Assign overwrites both
+  if BigIcon <> 0 then
+    SendMessage(AForm.Handle, WM_SETICON, ICON_BIG, BigIcon);
+  {$POP}
   {$ENDIF}
 end;
 
