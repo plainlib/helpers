@@ -73,7 +73,7 @@ type
 implementation
 
 const
-  MAX_ALLOWED_UNCOMPRESSED = 512 * 1024 * 1024;
+  MAX_ALLOWED_UNCOMPRESSED = 2048 * 1024 * 1024;
 
 class function TOS.SetCursorTo(Control: TControl; const ResName: string; CursorIndex: integer = 1001): boolean;
 var
