@@ -44,8 +44,11 @@ type
     // Returns True if any string in the list contains SubText
     function Any(const SubText: string): boolean;
 
-    // Returns True if the list contains value
+    // Returns True if the list contains string
     function Contains(const Value: string): boolean;
+
+    // Returns True if the list contains name
+    function ContainsName(const Name: string): boolean;
 
     /// Removes all lines that are a case-insensitive prefix of S, then adds S to the list.
     procedure AddReplaceStartsWith(const S: string);
@@ -211,6 +214,11 @@ end;
 function TStringsHelper.Contains(const Value: string): boolean;
 begin
   Result := Self.IndexOf(Value) >= 0;
+end;
+
+function TStringsHelper.ContainsName(const Name: string): boolean;
+begin
+  Result := Self.IndexOfName(Name) >= 0;
 end;
 
 procedure TStringsHelper.AddReplaceStartsWith(const S: string);

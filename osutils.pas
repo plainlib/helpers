@@ -637,7 +637,7 @@ begin
 
   // Ensure the directory exists
   if not ForceDirectories(logDir) then
-    Exit; // Cannot create directory, silent fail (можно бросить исключение при желании)
+    Exit; // Cannot create directory, silent fail
 
   logFile := IncludeTrailingPathDelimiter(logDir) + LogFileName;
 
