@@ -554,8 +554,9 @@ end;
 function TStringHelperEx.HTTPDecode: string;
 var
   S, SS, R: pchar;
-  H: string[3];
-  L, C: integer;
+  L: integer;
+  HexChar1, HexChar2: char;
+  DecodedByte: byte;
 begin
   L := Self.Length;
   Result := string.Empty;
@@ -569,25 +570,39 @@ begin
   begin
     case S^ of
       '+': R^ := SpaceChar;
-      '%': begin
-        Inc(S);
-        if ((S - SS) < L) then
+      '%':
+      begin
+        // Ensure at least two characters remain after '%'
+        if (S - SS + 2) < L then
         begin
-          if (S^ = '%') then
-            R^ := '%'
+          HexChar1 := (S + 1)^;
+          HexChar2 := (S + 2)^;
+          // Check if both characters are valid hexadecimal digits
+          if (HexChar1 in ['0'..'9', 'A'..'F', 'a'..'f']) and (HexChar2 in ['0'..'9', 'A'..'F', 'a'..'f']) then
+          begin
+            // Convert hex pair to byte value
+            DecodedByte := 0;
+            if HexChar1 <= '9' then
+              DecodedByte := (Ord(HexChar1) - Ord('0')) * 16
+            else
+              DecodedByte := ((Ord(UpCase(HexChar1)) - Ord('A')) + 10) * 16;
+            if HexChar2 <= '9' then
+              Inc(DecodedByte, Ord(HexChar2) - Ord('0'))
+            else
+              Inc(DecodedByte, (Ord(UpCase(HexChar2)) - Ord('A')) + 10);
+            R^ := Chr(DecodedByte);
+            Inc(S, 2); // Skip the two hex digits (loop will do one more Inc)
+          end
           else
           begin
-            H := '$00';
-            H[2] := S^;
-            Inc(S);
-            if (S - SS) < L then
-            begin
-              H[3] := S^;
-              Val(H, pbyte(R)^, C);
-              if (C <> 0) then
-                R^ := SpaceChar;
-            end;
+            // Not a valid hex sequence, keep the '%' as is
+            R^ := '%';
           end;
+        end
+        else
+        begin
+          // Not enough characters left, keep the '%' as is
+          R^ := '%';
         end;
       end;
       else
