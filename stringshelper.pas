@@ -50,6 +50,12 @@ type
     // Returns True if the list contains name
     function ContainsName(const Name: string): boolean;
 
+    // Return the maximum length of all strings in the list
+    function MaxLength: integer;
+
+    // Return the maximum length of values from name=value pairs
+    function MaxValueLength: integer;
+
     /// Removes all lines that are a case-insensitive prefix of S, then adds S to the list.
     procedure AddReplaceStartsWith(const S: string);
 
@@ -92,7 +98,7 @@ begin
     end;
 end;
 
-function TStringsHelper.FindEqualIndex(const AValue: string; CaseSensitive: boolean): integer;
+function TStringsHelper.FindEqualIndex(const AValue: string; CaseSensitive: boolean = True): integer;
 var
   i: integer;
 begin
@@ -181,26 +187,30 @@ begin
   if Result >= 0 then
     Exit;
 
-  SepStr := string.Empty;
-  for Part in CharSet do
-    SepStr := SepStr + Part;
-
-  // Try to split by common delimiters and search each part
-  Parts := AValue.Split(SepStr.ToCharArray);
-  for Part in Parts do
+  // Skip delimiter-based search if no separators are provided
+  if Seps <> [] then
   begin
-    if Part = string.Empty then
-      Continue;
+    SepStr := string.Empty;
+    for Part in CharSet do
+      SepStr := SepStr + Part;
 
-    // Search split part by Name
-    Result := Self.IndexOfName(Part);
-    if Result >= 0 then
-      Exit;
+    // Try to split by common delimiters and search each part
+    Parts := AValue.Split(SepStr.ToCharArray);
+    for Part in Parts do
+    begin
+      if Part = string.Empty then
+        Continue;
 
-    // Search split part by Value
-    Result := Self.FindEqualIndex(Part);
-    if Result >= 0 then
-      Exit;
+      // Search split part by Name
+      Result := Self.IndexOfName(Part);
+      if Result >= 0 then
+        Exit;
+
+      // Search split part by Value
+      Result := Self.FindEqualIndex(Part);
+      if Result >= 0 then
+        Exit;
+    end;
   end;
 
   Result := -1;
@@ -219,6 +229,35 @@ end;
 function TStringsHelper.ContainsName(const Name: string): boolean;
 begin
   Result := Self.IndexOfName(Name) >= 0;
+end;
+
+function TStringsHelper.MaxLength: integer;
+var
+  I: integer;
+  CurrentLen: integer;
+begin
+  Result := 0;
+  for I := 0 to Self.Count - 1 do
+  begin
+    CurrentLen := Length(Self.Strings[I]);
+    if CurrentLen > Result then
+      Result := CurrentLen;
+  end;
+end;
+
+// Return the maximum length of values from name=value pairs
+function TStringsHelper.MaxValueLength: integer;
+var
+  I: integer;
+  ValueLen: integer;
+begin
+  Result := 0;
+  for I := 0 to Self.Count - 1 do
+  begin
+    ValueLen := Length(Self.ValueFromIndex[I]);
+    if ValueLen > Result then
+      Result := ValueLen;
+  end;
 end;
 
 procedure TStringsHelper.AddReplaceStartsWith(const S: string);
