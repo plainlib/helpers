@@ -56,6 +56,7 @@ type
     class function FileEndsWithLineBreak(const FileName: string): boolean;
     class function LoadFileAsBytes(const FileName: string): TBytes;
     class function GetConsoleEncoding: string;
+    class function IsPortable(const SettingsFile: string = 'form_settings.json'): boolean;
     class function GetSettingsDirectory(const AppName: string; const FileName: string = '';
       const SettingsFile: string = 'form_settings.json'): string;
     class procedure Log(const AppName, Msg: string; const LogFileName: string = 'exception.log');
@@ -64,7 +65,7 @@ type
     class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
     class procedure ForceForegroundWindow(hWnd: THandle);
     {$IFDEF WINDOWS}
-    class procedure RegAutoStart(const AEnable: boolean; const AppName: string); static;
+    class procedure RegAutoStart(const AEnable: boolean; const AppName, OldAppName: string);
     class function GetTimestamp: int64; static;
     class function GetTimestampMod(const SourceText: string): string;
     {$ENDIF}
@@ -595,35 +596,52 @@ begin
   end;
 end;
 
-class function TOS.GetSettingsDirectory(const AppName: string; const FileName: string = '';
-  const SettingsFile: string = 'form_settings.json'): string;
+class function TOS.IsPortable(const SettingsFile: string = 'form_settings.json'): boolean;
   {$IFDEF WINDOWS}
 var
-  baseDir: string;
   exeDir: string;
+  baseDir: string;
   {$ENDIF}
 begin
   {$IFDEF WINDOWS}
   // Get directory where exe is located
   exeDir := ExtractFilePath(ParamStr(0));
 
-  // Portable mode: settings file exists near exe
-  if FileExists(exeDir + SettingsFile) then
-  begin
-    Result := IncludeTrailingPathDelimiter(exeDir) + FileName;
-    Exit;
-  end;
-
   // Default mode: use LOCALAPPDATA or APPDATA
   baseDir := SysUtils.GetEnvironmentVariable('LOCALAPPDATA');
   if baseDir = '' then
     baseDir := SysUtils.GetEnvironmentVariable('APPDATA');
 
-  Result := IncludeTrailingPathDelimiter(baseDir) + AppName + PathDelim + FileName;
+  // Portable mode: settings file exists near exe and not in default data directory
+  Result := FileExists(ConcatPaths([exeDir, SettingsFile])) and
+            (ExcludeTrailingPathDelimiter(exeDir) <> ExcludeTrailingPathDelimiter(baseDir));
   {$ELSE}
-  // Unix-like systems: use ~/.config/<AppName>
-  Result := IncludeTrailingPathDelimiter(GetUserDir) + '.config/' + AppName + '/' + FileName;
+  Result := False;
   {$ENDIF}
+end;
+
+class function TOS.GetSettingsDirectory(const AppName: string; const FileName: string = '';
+  const SettingsFile: string = 'form_settings.json'): string;
+  {$IFDEF WINDOWS}
+var
+  baseDir: string;
+  {$ENDIF}
+begin
+  if IsPortable(SettingsFile) then
+    Result := ConcatPaths([ExtractFilePath(ParamStr(0)), FileName])
+  else
+  begin
+    {$IFDEF WINDOWS}
+    // Default mode: use LOCALAPPDATA or APPDATA
+    baseDir := SysUtils.GetEnvironmentVariable('LOCALAPPDATA');
+    if baseDir = '' then
+      baseDir := SysUtils.GetEnvironmentVariable('APPDATA');
+    Result := ConcatPaths([baseDir, AppName, FileName]);
+    {$ELSE}
+    // Unix-like systems: use ~/.config/<AppName>
+    Result := ConcatPaths([IncludeTrailingPathDelimiter(GetUserDir), '.config', AppName, FileName]);
+    {$ENDIF}
+  end;
 end;
 
 class procedure TOS.Log(const AppName, Msg: string; const LogFileName: string = 'exception.log');
@@ -782,15 +800,12 @@ end;
 
 {$IFDEF WINDOWS}
 
-class procedure TOS.RegAutoStart(const AEnable: boolean; const AppName: string);
+class procedure TOS.RegAutoStart(const AEnable: boolean; const AppName, OldAppName: string);
 var
   Reg: TRegistry;
   ExeName: string;
-  OldName: string;
 begin
   ExeName := '"' + ParamStr(0) + '"';
-
-  OldName := 'Trayslate';
 
   Reg := TRegistry.Create;
   try
@@ -799,8 +814,8 @@ begin
     if Reg.OpenKey('Software\Microsoft\Windows\CurrentVersion\Run', True) then
     begin
       // Remove old entry only if name changed
-      if (AppName <> OldName) and Reg.ValueExists(OldName) then
-        Reg.DeleteValue(OldName);
+      if (AppName <> OldAppName) and Reg.ValueExists(OldAppName) then
+        Reg.DeleteValue(OldAppName);
 
       if AEnable then
         Reg.WriteString(AppName, ExeName)
@@ -810,8 +825,8 @@ begin
           Reg.DeleteValue(AppName);
 
         // also clean legacy key when disabling
-        if Reg.ValueExists(OldName) then
-          Reg.DeleteValue(OldName);
+        if Reg.ValueExists(OldAppName) then
+          Reg.DeleteValue(OldAppName);
       end;
     end;
   finally
