@@ -22,7 +22,7 @@ type
     // Blend two colors with given intensity (0-100)
     function BlendColor(AColor: TColor; Intensity: integer): TColor;
 
-  // Invert font color against background, with mid-level threshold
+    // Invert font color against background, with mid-level threshold
     function InvertColor(ABackColor: TColor; MidLevel: integer = 128; AOnlyDarkBackground: boolean = False): TColor;
 
     // Simple inversion: flip each RGB channel
@@ -33,6 +33,9 @@ type
 
     // Lighten a dark color for dark themes (blend toward white)
     function ToDarkTheme(Delta: integer = 60): TColor;
+
+    // Lighten or darken a color by an amount, positive lightens, negative darkens
+    function AdjustBrightness(Amount: integer): TColor;
   end;
 
 implementation
@@ -166,6 +169,22 @@ begin
   B := B + Round((255 - B) * Factor);
 
   Result := RGB(R, G, B);
+end;
+
+function TColorHelper.AdjustBrightness(Amount: integer): TColor;
+var
+  R, G, B: integer;
+begin
+  R := Red(Self) + Amount;
+  G := Green(Self) + Amount;
+  B := Blue(Self) + Amount;
+  if R < 0 then R := 0
+  else if R > 255 then R := 255;
+  if G < 0 then G := 0
+  else if G > 255 then G := 255;
+  if B < 0 then B := 0
+  else if B > 255 then B := 255;
+  Result := RGBToColor(R, G, B);
 end;
 
 {%EndRegion}
