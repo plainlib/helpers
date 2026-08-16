@@ -18,19 +18,20 @@ uses
   Dialogs,
   Classes,
   SysUtils,
-  Clipbrd;
+  Clipbrd,
+  LCLType;
 
 type
   // Holds a single clipboard format together with its duplicated data handle
   {$IFDEF WINDOWS}
-  TClipboardFormatData = record
-    Format: UINT;
-    Handle: HGLOBAL;
-  end;
+    TClipboardFormatData = record
+      Format: UINT;
+      Handle: HGLOBAL;
+    end;
   {$ELSE}
   TClipboardFormatData = record
-    Format: PtrUInt;
-    Handle: THandle;
+    FormatID: TClipboardFormat;
+    Data: TMemoryStream;
   end;
   {$ENDIF}
 
@@ -126,7 +127,7 @@ end;
 
 {$ENDIF}
 
-  { TClipboardHelper }
+{ TClipboardHelper }
 
 function TClipboardHelper.AddExcludeFlag: boolean;
 begin
@@ -386,6 +387,11 @@ var
   pSrc, pDst: Pointer;
   Size: NativeUInt;
   Count, Idx: Integer;
+  {$ELSE}
+var
+  I: integer;
+  FormatID: TClipboardFormat;
+  ms: TMemoryStream;
   {$ENDIF}
 begin
   Result := [];
@@ -456,7 +462,32 @@ begin
     CloseClipboard;
   end;
   {$ELSE}
-  SetLength(Result, 0);
+  Clipboard.Open;
+  try
+    SetLength(Result, 0);
+    if Clipboard.FormatCount = 0 then
+      Exit;
+
+    for I := 0 to Clipboard.FormatCount - 1 do
+    begin
+      FormatID := Clipboard.Formats[I];
+      ms := TMemoryStream.Create;
+      try
+        if Clipboard.GetFormat(FormatID, ms) then
+        begin
+          ms.Position := 0;
+          SetLength(Result, Length(Result) + 1);
+          Result[High(Result)].FormatID := FormatID;
+          Result[High(Result)].Data := TMemoryStream.Create;
+          Result[High(Result)].Data.CopyFrom(ms, ms.Size);
+        end;
+      finally
+        ms.Free;
+      end;
+    end;
+  finally
+    Clipboard.Close;
+  end;
   {$ENDIF}
 end;
 
@@ -464,6 +495,9 @@ procedure TClipboardHelper.RestoreAllFormats(var ASaved: TClipboardFormatDataArr
 {$IFDEF WINDOWS}
 var
   I: Integer;
+{$ELSE}
+var
+  I: integer;
 {$ENDIF}
 begin
   {$IFDEF WINDOWS}
@@ -498,6 +532,32 @@ begin
   // Handles are now owned by the clipboard – discard array references
   SetLength(ASaved, 0);
   {$ELSE}
+  if Length(ASaved) = 0 then
+    Exit;
+
+  Clipboard.Open;
+  try
+    Clipboard.Clear;
+    for I := 0 to High(ASaved) do
+    begin
+      if ASaved[I].Data = nil then
+        Continue;
+      ASaved[I].Data.Position := 0;
+      Clipboard.AddFormat(ASaved[I].FormatID, ASaved[I].Data);
+      // Do not free Data here - clipboard may still need it until Close
+    end;
+  finally
+    Clipboard.Close;
+  end;
+  // Now safe to free all saved streams after Close
+  for I := 0 to High(ASaved) do
+  begin
+    if ASaved[I].Data <> nil then
+    begin
+      ASaved[I].Data.Free;
+      ASaved[I].Data := nil;
+    end;
+  end;
   SetLength(ASaved, 0);
   {$ENDIF}
 end;

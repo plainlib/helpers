@@ -219,7 +219,12 @@ type
 
     // Extract substring between StartMarker and EndMarker.
     function ExtractBetween(const StartMarker, EndMarker: string): string;
-  end;
+
+    // Returns True if the backslash at position Index is escaped
+    // (preceded by an odd number of backslashes), meaning it is
+    // a literal backslash, not the start of an RTF command.
+    function IsEscapedBackslash(Index: integer): boolean;
+end;
 
   { TCaptionHelper }
 
@@ -1748,6 +1753,21 @@ begin
   EndPos := Pos(EndMarker, System.Copy(Self, StartPos, MaxInt));
   if EndPos = 0 then Exit;
   Result := System.Copy(Self, StartPos, EndPos - 1);
+end;
+
+function TStringHelperEx.IsEscapedBackslash(Index: integer): boolean;
+var
+  Count: integer = 0;
+  i: integer = 0;
+begin
+  Result := False;
+  i := Index - 1;
+  while (i >= 1) and (Self[i] = '\') do
+  begin
+    Inc(Count);
+    Dec(i);
+  end;
+  Result := Odd(Count);
 end;
 
 {%EndRegion}
