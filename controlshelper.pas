@@ -14,6 +14,7 @@ interface
 uses
   Forms,
   Classes,
+  Controls,
   Types,
   SysUtils,
   StdCtrls,
@@ -25,6 +26,12 @@ uses
   LazUTF8;
 
 type
+  { Helper methods for TControl }
+  TControlHelper = class helper for TControl
+  public
+    function GetActualFontSize: integer;
+  end;
+
   { Helper methods for TMemo }
   TMemoHelper = class helper for TMemo
   public
@@ -55,6 +62,17 @@ type
   end;
 
 implementation
+
+{ TControl }
+
+function TControlHelper.GetActualFontSize: integer;
+begin
+  if Self.Font.Size <> 0 then
+    Result := Self.Font.Size
+  else
+    // Fallback to system font size if control uses default
+    Result := Screen.SystemFont.Size;
+end;
 
 { TMemoHelper }
 
