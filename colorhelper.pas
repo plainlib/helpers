@@ -46,7 +46,7 @@ type
     procedure CircleFilled(const ARect: Types.TRect; AColor: TColor);
 
     // Draw a 1-pixel circle outline by detecting boundary pixels with 8-connectivity
-    procedure CircleOutline(const ARect: TRect; AColor: TColor);
+    procedure CircleOutline(const ARect: TRect; AColor, ABackgroundColor: TColor; AThickness: integer = 2; ABlendIntensity: integer = 50);
   end;
 
 implementation
@@ -236,37 +236,41 @@ begin
   end;
 end;
 
-procedure TCanvasHelper.CircleOutline(const ARect: TRect; AColor: TColor);
+procedure TCanvasHelper.CircleOutline(const ARect: TRect; AColor, ABackgroundColor: TColor; AThickness: integer = 2;
+  ABlendIntensity: integer = 50);
 var
-  Inside: array of array of boolean = nil;
   Cx, Cy, R: double;
   W, H, X, Y: integer;
   AbsX, AbsY: integer;
+  Dist: double;
+  Inside: array of array of boolean = nil;
+  Boundary: array of array of boolean = nil;
   HasOutsideNeighbor: boolean;
   DX, DY: integer;
 begin
   W := ARect.Right - ARect.Left;
   H := ARect.Bottom - ARect.Top;
-  SetLength(Inside, W, H);
 
   Cx := (ARect.Left + ARect.Right - 1) / 2;
   Cy := (ARect.Top + ARect.Bottom - 1) / 2;
   R := (ARect.Right - ARect.Left) / 2;
 
-  // Build the inside mask using the same formula as CircleFilled
+  Self.Pen.Style := psClear;
+  Self.Brush.Style := bsSolid;
+
+  SetLength(Inside, W, H);
+  SetLength(Boundary, W, H);
   for Y := 0 to H - 1 do
     for X := 0 to W - 1 do
     begin
       AbsX := ARect.Left + X;
       AbsY := ARect.Top + Y;
       Inside[X, Y] := ((AbsX - Cx) * (AbsX - Cx) + (AbsY - Cy) * (AbsY - Cy)) <= R * R;
+      Boundary[X, Y] := False;
     end;
 
-  // Draw only boundary pixels: inside but at least one of 8 neighbors is outside
-  Self.Pen.Style := psClear;
-  Self.Brush.Style := bsSolid;
   Self.Brush.Color := AColor;
-
+  // Draw only boundary pixels: inside but at least one of 8 neighbors is outside
   for Y := 0 to H - 1 do
     for X := 0 to W - 1 do
     begin
@@ -294,8 +298,33 @@ begin
         end;
 
       if HasOutsideNeighbor then
+      begin
+        Boundary[X, Y] := True; // mark as boundary
         Self.FillRect(ARect.Left + X, ARect.Top + Y, ARect.Left + X + 1, ARect.Top + Y + 1);
+      end;
     end;
+
+  // Draw inner smoothing ring with fixed blended color
+  if ABackgroundColor <> clNone then
+  begin
+    // Fixed blend intensity: 50% background, 50% outline
+    Self.Brush.Color := ABackgroundColor.BlendColor(AColor, ABlendIntensity);
+
+    for Y := 0 to H - 1 do
+      for X := 0 to W - 1 do
+      begin
+        if not Inside[X, Y] then Continue;
+        if Boundary[X, Y] then Continue; // keep pure outline color
+
+        AbsX := ARect.Left + X;
+        AbsY := ARect.Top + Y;
+        Dist := sqrt((AbsX - Cx) * (AbsX - Cx) + (AbsY - Cy) * (AbsY - Cy));
+
+        // Draw only pixels in the inner ring: R - AThickness <= Dist < R
+        if Dist >= R - AThickness then
+          Self.FillRect(ARect.Left + X, ARect.Top + Y, ARect.Left + X + 1, ARect.Top + Y + 1);
+      end;
+  end;
 end;
 
 {%EndRegion}
