@@ -47,9 +47,16 @@ type
       AHintText: string = string.Empty; AWordWrap: boolean = False; AShowLineBreaks: boolean = False;
       ABiDiRightToLeft: boolean = False);
 
+    // Determines whether the specified scrollbar (horizontal or vertical) is actually visible,
+    // taking into account the ScrollBars property and content size vs. viewport for auto styles.
     function GetActualScrollBarVisibility(ScrollBarStyle: TScrollStyle): boolean;
-  end;
 
+    // Helper method for TStringGrid to scroll by wheel delta.
+    // WheelDelta is the raw delta from mouse wheel message (usually ±120 per notch).
+    // The number of scrolled rows is proportional to the number of notches (WheelDelta / 120).
+    procedure ScrollByWheel(WheelDelta: integer);
+
+  end;
 
 function GridDrawColors(AHighlight, ALineBreak, AHint: TColor; AHintBack: TColor = clNone): TGridDrawColors;
 
@@ -754,6 +761,31 @@ begin
         Result := (Self.ScrollBars in [ssVertical, ssBoth]);
     end;
   end;
+end;
+
+procedure TStringGridHelper.ScrollByWheel(WheelDelta: integer);
+const
+  LinesPerNotch = 3; // how many rows to scroll for one standard wheel notch (120 units)
+var
+  Notches: integer;
+  NewTopRow: integer;
+begin
+  // Convert wheel delta to number of standard notches (positive = scroll up).
+  // Integer division truncates, so small deltas (<120) are ignored.
+  Notches := WheelDelta div 120;
+
+  // Calculate new top row: scrolling up (positive notches) decreases TopRow.
+  NewTopRow := Self.TopRow - Notches * LinesPerNotch;
+
+  // Clamp NewTopRow to valid range.
+  // TopRow counts from FixedRows+1 (after fixed rows) up to the last possible first visible row.
+  if NewTopRow < Self.FixedRows + 1 then
+    NewTopRow := Self.FixedRows + 1;
+  if NewTopRow > Self.RowCount - Self.VisibleRowCount + 1 + Self.FixedRows then
+    NewTopRow := Self.RowCount - Self.VisibleRowCount + 1 + Self.FixedRows;
+
+  // Apply the new top row. This updates scrollbars and repaints automatically.
+  Self.TopRow := NewTopRow;
 end;
 
 {%EndRegion}
