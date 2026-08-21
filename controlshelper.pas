@@ -30,7 +30,7 @@ type
   TControlHelper = class helper for TWinControl
   public
     function GetActualFontSize: integer;
-    procedure EnableDoubleBuffering;
+    procedure SetComposited(AEnabled: boolean);
     procedure LockUpdate;
     procedure UnlockUpdate;
     procedure PulseUpdate;
@@ -84,7 +84,7 @@ begin
     Result := Screen.SystemFont.Size;
 end;
 
-procedure TControlHelper.EnableDoubleBuffering;
+procedure TControlHelper.SetComposited(AEnabled: boolean);
 {$IFDEF WINDOWS}
 const
   WS_EX_COMPOSITED = $02000000;
@@ -95,15 +95,23 @@ var
 begin
   {$IFDEF WINDOWS}
   if not (Self is TWinControl) then Exit;
+
   WinCtrl := TWinControl(Self);
-  WinCtrl.HandleNeeded; // Ensure the handle is created
   if not WinCtrl.HandleAllocated then Exit;
 
   ExStyle := GetWindowLongPtr(WinCtrl.Handle, GWL_EXSTYLE);
-  if (ExStyle and WS_EX_COMPOSITED) = 0 then
+
+  if AEnabled then
   begin
-    SetWindowLongPtr(WinCtrl.Handle, GWL_EXSTYLE, ExStyle or WS_EX_COMPOSITED);
-    // The style change is applied immediately, no need to recreate the window
+    if (ExStyle and WS_EX_COMPOSITED) = 0 then
+      SetWindowLongPtr(WinCtrl.Handle, GWL_EXSTYLE,
+        ExStyle or WS_EX_COMPOSITED);
+  end
+  else
+  begin
+    if (ExStyle and WS_EX_COMPOSITED) <> 0 then
+      SetWindowLongPtr(WinCtrl.Handle, GWL_EXSTYLE,
+        ExStyle and not WS_EX_COMPOSITED);
   end;
   {$ENDIF}
 end;
