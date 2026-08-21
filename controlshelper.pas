@@ -27,9 +27,14 @@ uses
 
 type
   { Helper methods for TControl }
-  TControlHelper = class helper for TControl
+  TControlHelper = class helper for TWinControl
   public
     function GetActualFontSize: integer;
+    procedure EnableDoubleBuffering;
+    procedure LockUpdate;
+    procedure UnlockUpdate;
+    procedure PulseUpdate;
+    procedure RedrawNow;
   end;
 
   { Helper methods for TMemo }
@@ -63,6 +68,11 @@ type
 
 implementation
 
+{$IFDEF WINDOWS}
+uses
+  Windows;
+{$ENDIF}
+
 { TControl }
 
 function TControlHelper.GetActualFontSize: integer;
@@ -72,6 +82,101 @@ begin
   else
     // Fallback to system font size if control uses default
     Result := Screen.SystemFont.Size;
+end;
+
+procedure TControlHelper.EnableDoubleBuffering;
+{$IFDEF WINDOWS}
+const
+  WS_EX_COMPOSITED = $02000000;
+var
+  WinCtrl: TWinControl;
+  ExStyle: LONG_PTR;
+{$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  if not (Self is TWinControl) then Exit;
+  WinCtrl := TWinControl(Self);
+  WinCtrl.HandleNeeded; // Ensure the handle is created
+  if not WinCtrl.HandleAllocated then Exit;
+
+  ExStyle := GetWindowLongPtr(WinCtrl.Handle, GWL_EXSTYLE);
+  if (ExStyle and WS_EX_COMPOSITED) = 0 then
+  begin
+    SetWindowLongPtr(WinCtrl.Handle, GWL_EXSTYLE, ExStyle or WS_EX_COMPOSITED);
+    // The style change is applied immediately, no need to recreate the window
+  end;
+  {$ENDIF}
+end;
+
+procedure TControlHelper.LockUpdate;
+{$IFDEF WINDOWS}
+var
+  WinCtrl: TWinControl;
+{$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  if not (Self is TWinControl) then Exit;
+  WinCtrl := TWinControl(Self);
+  if not WinCtrl.HandleAllocated then
+    WinCtrl.HandleNeeded;
+  if WinCtrl.HandleAllocated then
+    LockWindowUpdate(WinCtrl.Handle);
+  {$ENDIF}
+end;
+
+procedure TControlHelper.UnlockUpdate;
+{$IFDEF WINDOWS}
+var
+  WinCtrl: TWinControl;
+{$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  if not (Self is TWinControl) then Exit;
+  WinCtrl := TWinControl(Self);
+  if WinCtrl.HandleAllocated then
+  begin
+    LockWindowUpdate(0);
+    RedrawNow;
+  end;
+  {$ENDIF}
+end;
+
+procedure TControlHelper.PulseUpdate;
+{$IFDEF WINDOWS}
+var
+  WinCtrl: TWinControl;
+{$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  if not (Self is TWinControl) then Exit;
+  WinCtrl := TWinControl(Self);
+  if WinCtrl.HandleAllocated then
+  begin
+    LockWindowUpdate(0);
+    try
+      RedrawNow;
+    finally
+      LockWindowUpdate(WinCtrl.Handle);
+    end;
+  end;
+  {$ENDIF}
+end;
+
+procedure TControlHelper.RedrawNow;
+{$IFDEF WINDOWS}
+var
+  WinCtrl: TWinControl;
+{$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  if not (Self is TWinControl) then Exit;
+  WinCtrl := TWinControl(Self);
+  if WinCtrl.HandleAllocated then
+  begin
+    InvalidateRect(WinCtrl.Handle, nil, True); // True = erase background
+    UpdateWindow(WinCtrl.Handle);
+  end;
+  {$ENDIF}
 end;
 
 { TMemoHelper }
@@ -153,7 +258,7 @@ end;
 
 function TMemoHelper.GetBottomSpace: integer;
 var
-  Bmp: TBitmap;
+  Bmp: Graphics.TBitmap;
   TextRect: TRect;
   Txt: string;
   Flags: cardinal;
@@ -170,16 +275,16 @@ begin
   if Self.WordWrap then
     Flags := Flags or DT_WORDBREAK;
 
-  Bmp := TBitmap.Create;
+  Bmp := Graphics.TBitmap.Create;
   try
     Bmp.Canvas.Font.Assign(Self.Font);
 
     // Width for calculation: ClientWidth minus a small inner margin (optional)
     // With WordWrap, width is limited to ClientWidth, otherwise use a very large width
     if Self.WordWrap then
-      TextRect := Rect(0, 0, Self.ClientWidth - 4, 0)
+      TextRect := Types.Rect(0, 0, Self.ClientWidth - 4, 0)
     else
-      TextRect := Rect(0, 0, 32767, 0);  // large enough to avoid wrapping
+      TextRect := Types.Rect(0, 0, 32767, 0);  // large enough to avoid wrapping
 
     DrawText(
       Bmp.Canvas.Handle,
@@ -297,14 +402,14 @@ end;
 
 procedure TCustomEditHelper.SetCaretWidth(const AWidth: integer = 2);
 var
-  Bmp: TBitmap;
+  Bmp: Graphics.TBitmap;
   CaretHeight: integer;
 begin
   if not Assigned(Self) then Exit;
   if not Self.HandleAllocated then Exit;
 
   // Get actual font height via a temporary bitmap (cross-platform, no API)
-  Bmp := TBitmap.Create;
+  Bmp := Graphics.TBitmap.Create;
   try
     Bmp.Canvas.Font.Assign(Self.Font);
     CaretHeight := Bmp.Canvas.TextHeight('Ag');  // 'Ag' has typical ascender/descender
@@ -313,8 +418,8 @@ begin
   end;
 
   // Replace the system caret
-  DestroyCaret(Self.Handle);
-  CreateCaret(Self.Handle, 0, AWidth, CaretHeight);
+  LCLIntf.DestroyCaret(Self.Handle);
+  LCLIntf.CreateCaret(Self.Handle, 0, AWidth, CaretHeight);
 
   // Show caret if the control has focus
   if Self.Focused then
