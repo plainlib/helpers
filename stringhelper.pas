@@ -14,7 +14,6 @@ interface
 
 uses
   Forms,
-  Types,
   Controls,
   StdCtrls,
   SysUtils,
@@ -224,7 +223,7 @@ type
     // (preceded by an odd number of backslashes), meaning it is
     // a literal backslash, not the start of an RTF command.
     function IsEscapedBackslash(Index: integer): boolean;
-end;
+  end;
 
   { TCaptionHelper }
 

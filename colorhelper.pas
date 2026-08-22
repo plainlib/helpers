@@ -223,7 +223,7 @@ begin
     if Dy > R then Continue;
     Dx := Sqrt(R * R - Dy * Dy);
     XStart := Max(ARect.Left, Round(Cx - Dx + 0.5));
-    XEnd := Min(ARect.Right - 1, Round(Cx + Dx - 0.5));
+    XEnd := Min(int64(ARect.Right) - 1, Round(Cx + Dx - 0.5));
     if XStart <= XEnd then
     begin
       // Calculate gradient factor from 1 at top to 0 at bottom
