@@ -64,6 +64,7 @@ type
     class function CompressMemoryStream(InputStream: TMemoryStream; ALevel: integer = Z_DEFAULT_COMPRESSION): TMemoryStream;
     class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
     class procedure ForceForegroundWindow(hWnd: THandle);
+    class procedure ForceRestartApp;
     {$IFDEF WINDOWS}
     class procedure RegAutoStart(const AEnable: boolean; const AppName, OldAppName: string);
     class function GetTimestamp: int64; static;
@@ -796,6 +797,34 @@ begin
   else
     SetForegroundWindow(hWnd);
   {$ENDIF}
+end;
+
+class procedure TOS.ForceRestartApp;
+var
+  ExePath: string;
+  StartupInfo: TStartupInfo;
+  ProcessInfo: TProcessInformation;
+begin
+  ExePath := string.Empty;
+  StartupInfo := Default(TStartupInfo);
+  ProcessInfo := Default(TProcessInformation);
+
+  // Get the path to the current executable file
+  SetLength(ExePath, MAX_PATH);
+  SetLength(ExePath, GetModuleFileName(0, PChar(ExePath), MAX_PATH));
+
+  // Launch a new instance of the application
+  FillChar(StartupInfo, SizeOf(StartupInfo), 0);
+  StartupInfo.cb := SizeOf(StartupInfo);
+  if CreateProcess(PChar(ExePath), nil, nil, nil, False, 0, nil, nil, StartupInfo, ProcessInfo) then
+  begin
+    // Close handles to avoid resource leaks
+    CloseHandle(ProcessInfo.hThread);
+    CloseHandle(ProcessInfo.hProcess);
+  end;
+
+  // Forcefully terminate the current process
+  TerminateProcess(GetCurrentProcess, 1);
 end;
 
 {$IFDEF WINDOWS}
