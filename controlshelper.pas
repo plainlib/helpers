@@ -58,6 +58,7 @@ type
   TComboBoxHelper = class helper for TComboBox
   public
     procedure FillFontCombo;
+    procedure AdjustComboHeight;
   end;
 
   { Helper methods for TColorBox }
@@ -448,6 +449,29 @@ begin
   finally
     Self.Items.EndUpdate;
   end;
+end;
+
+procedure TComboBoxHelper.AdjustComboHeight;
+var
+  TextHeight: integer;
+  Padding: integer;
+  NewHeight: integer;
+begin
+  // Ensure canvas uses the combo's font for correct measurement
+  Self.Canvas.Font.Assign(Self.Font);
+
+  // Get text height from combo font
+  TextHeight := Self.Canvas.TextHeight('Wg');
+
+  // Desired padding around text inside the combo
+  Padding := 1;
+
+  // Set the height of each item in the dropdown list
+  Self.ItemHeight := TextHeight + Padding * 2;
+
+  // Set the height of the combo box itself
+  NewHeight := TextHeight + Padding * 2;
+  Self.Height := NewHeight;
 end;
 
 { TColorBoxHelper }
