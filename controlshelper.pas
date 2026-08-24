@@ -21,9 +21,16 @@ uses
   Clipbrd,
   Graphics,
   ColorBox,
+  CheckLst,
+  Math,
+  Themes,
   LCLIntf,
   LCLType,
-  LazUTF8;
+  LazUTF8,
+  pascalutils;
+
+type
+  TListCheckAction = (caCheckAll, caUncheckAll, caInvert);
 
 type
   { Helper methods for TControl }
@@ -59,6 +66,15 @@ type
   public
     procedure FillFontCombo;
     procedure AdjustComboHeight;
+  end;
+
+  { Helper methods for TCustomCheckListBox }
+  TCustomCheckListBoxHelper = class helper for TCustomCheckListBox
+  public
+    procedure CheckSelection(Value: boolean; Invert:Boolean = False);
+    procedure DrawCheckListItem(Canvas: Graphics.TCanvas; const ARect: Classes.TRect; State: LCLType.TOwnerDrawState;
+      Checked: boolean; Enabled: boolean; Focused: boolean; BackgroundColor: Graphics.TColor; TextColor: Graphics.TColor;
+      const Text: string; Icon: Graphics.TBitmap);
   end;
 
   { Helper methods for TColorBox }
@@ -472,6 +488,126 @@ begin
   // Set the height of the combo box itself
   NewHeight := TextHeight + Padding * 2;
   Self.Height := NewHeight;
+end;
+
+{ TCustomListBoxHelper}
+
+procedure TCustomCheckListBoxHelper.CheckSelection(Value: boolean; Invert:Boolean = False);
+var
+  I: integer;
+begin
+  for I := 0 to Items.Count - 1 do
+    if Selected[I] then
+      Checked[I] := iif(Invert, not Checked[I], Value);
+end;
+
+procedure TCustomCheckListBoxHelper.DrawCheckListItem(Canvas: Graphics.TCanvas; const ARect: Classes.TRect;
+  State: LCLType.TOwnerDrawState; Checked: boolean; Enabled: boolean; Focused: boolean; BackgroundColor: Graphics.TColor;
+  TextColor: Graphics.TColor; const Text: string; Icon: Graphics.TBitmap);
+const
+  PADDING = 4;
+var
+  CheckRect, IconRect: TRect;
+  CheckSize: TSize;
+  Details: TThemedElementDetails;
+  TextLeft: integer;
+begin
+  // Draw background according to selection state
+  if LCLType.odSelected in State then
+  begin
+    Canvas.Brush.Color := clHighlight;
+    Canvas.Brush.Style := bsSolid;
+    Canvas.FillRect(ARect);
+  end
+  else
+  begin
+    Canvas.Brush.Color := BackgroundColor;
+    Canvas.Brush.Style := bsSolid;
+    Canvas.FillRect(ARect);
+  end;
+
+  // Get standard checkbox size from system metrics
+  CheckSize.cx := GetSystemMetrics(SM_CXMENUCHECK);
+  CheckSize.cy := GetSystemMetrics(SM_CYMENUCHECK);
+
+  // Calculate checkbox rectangle (vertically centered)
+  CheckRect := Bounds(ARect.Left + 2, ARect.Top + (ARect.Height - CheckSize.cy) div 2, CheckSize.cx, CheckSize.cy);
+
+  // Draw checkbox
+  if ThemeServices.ThemesEnabled then
+  begin
+    if Checked then
+    begin
+      if not Enabled then
+        Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedDisabled)
+      else if (LCLType.odSelected in State) and Focused then
+        Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedHot)
+      else
+        Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedNormal);
+    end
+    else
+    begin
+      if not Enabled then
+        Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedDisabled)
+      else if (LCLType.odSelected in State) and Focused then
+        Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedHot)
+      else
+        Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedNormal);
+    end;
+
+    ThemeServices.DrawElement(Canvas.Handle, Details, CheckRect, nil);
+  end
+  else
+  begin
+    {$IFDEF WINDOWS}
+    // Windows classic fallback
+    DrawFrameControl(
+      Canvas.Handle,
+      CheckRect,
+      DFC_BUTTON,
+      DFCS_BUTTONCHECK or IfThen(Checked, DFCS_CHECKED, 0)
+      );
+    {$ELSE}
+    // Simple cross-platform fallback when themes are disabled
+    Canvas.Pen.Color := clWindowFrame;
+    Canvas.Brush.Color := clWindow;
+    Canvas.Rectangle(CheckRect);
+    if Checked then
+    begin
+      Canvas.Pen.Color := clWindowText;
+      Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2, CheckRect.Top + CheckRect.Height - 2);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 2);
+    end;
+    {$ENDIF}
+  end;
+
+  TextLeft := CheckRect.Right + PADDING;
+
+  // Draw icon
+  if Assigned(Icon) then
+  begin
+    IconRect := Bounds(TextLeft, ARect.Top + (ARect.Height - Icon.Height) div 2, Icon.Width, Icon.Height);
+    Canvas.Draw(IconRect.Left, IconRect.Top, Icon);
+    TextLeft := IconRect.Right + PADDING;
+  end;
+
+  // Prepare to draw text: transparent background and correct color
+  Canvas.Brush.Style := bsClear;
+  if LCLType.odSelected in State then
+    Canvas.Font.Color := clWhite
+  else
+    Canvas.Font.Color := TextColor;
+
+  Canvas.TextOut(
+    TextLeft,
+    ARect.Top + (ARect.Height - Canvas.TextHeight(Text)) div 2,
+    Text
+    );
+
+  // Draw focus rectangle
+  if LCLType.odFocused in State then
+    Canvas.DrawFocusRect(ARect);
 end;
 
 { TColorBoxHelper }
