@@ -20,6 +20,9 @@ type
   TIntegerArray = array of integer;
 
 type
+
+  { TIntegerArrayHelper }
+
   TIntegerArrayHelper = type helper for TIntegerArray
   public
     /// Inserts a value at the specified position, shifting elements by an optional delta
@@ -35,9 +38,20 @@ type
     procedure CopyToArray(const Dest: TIntegerArray);
   end;
 
+  { TStringArrayHelper }
+
+  TStringArrayHelper = type helper for TStringArray
+  public
+    // Append all elements from another array to the current array
+    procedure AddArray(const AOther: TStringArray);
+
+    // Return a new array that combines current array and another array
+    function ConcatArray(const AOther: TStringArray): TStringArray;
+  end;
+
 implementation
 
-{TIntegerArrayHelper}
+{ TIntegerArrayHelper }
 
 procedure TIntegerArrayHelper.InsertAtPos(Pos, Value: integer; Delta: integer = 0);
 var
@@ -91,6 +105,36 @@ begin
   CopyCount := Min(Length(Dest), Length(Self));
   for i := 0 to CopyCount - 1 do
     Dest[i] := Self[i];
+end;
+
+{ TStringArrayHelper }
+
+procedure TStringArrayHelper.AddArray(const AOther: TStringArray);
+var
+  OldLen: integer;
+  i: integer;
+begin
+  OldLen := Length(Self);
+  SetLength(Self, OldLen + Length(AOther));
+
+  for i := 0 to High(AOther) do
+    Self[OldLen + i] := AOther[i];
+end;
+
+function TStringArrayHelper.ConcatArray(const AOther: TStringArray): TStringArray;
+var
+  i: integer;
+begin
+  Result := nil;
+  SetLength(Result, Length(Self) + Length(AOther));
+
+  // Copy current array
+  for i := 0 to High(Self) do
+    Result[i] := Self[i];
+
+  // Copy other array
+  for i := 0 to High(AOther) do
+    Result[Length(Self) + i] := AOther[i];
 end;
 
 end.

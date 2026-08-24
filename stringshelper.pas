@@ -73,6 +73,12 @@ type
 
     /// Removes all occurrences of AName from the list.
     procedure RemoveAll(const AName: string);
+
+    // Restrict list to items that exist in the allowed array
+    procedure RestrictTo(const AAllowed: TStringArray);
+
+    // Restrict list by name part before '=' using allowed names and exceptions
+    procedure RestrictToNames(const AAllowedNames, AExceptNames: TStringArray);
   end;
 
   { TStringArrayHelper }
@@ -501,6 +507,83 @@ begin
   begin
     Self.Delete(Index);
     Index := Self.IndexOf(AName);
+  end;
+end;
+
+procedure TStringsHelper.RestrictTo(const AAllowed: TStringArray);
+var
+  i, j: integer;
+  Found: boolean;
+begin
+  // If allowed array is empty then keep all items
+  if Length(AAllowed) = 0 then
+    Exit;
+
+  // Iterate backwards to safely remove items not present in allowed array
+  for i := Count - 1 downto 0 do
+  begin
+    Found := False;
+    for j := Low(AAllowed) to High(AAllowed) do
+    begin
+      if Strings[i] = AAllowed[j] then
+      begin
+        Found := True;
+        Break;
+      end;
+    end;
+
+    if not Found then
+      Delete(i);
+  end;
+end;
+
+procedure TStringsHelper.RestrictToNames(const AAllowedNames, AExceptNames: TStringArray);
+var
+  i: integer;
+  NamePart: string;
+  EqPos: integer;
+  Allowed: boolean;
+  Exc: boolean;
+  j: integer;
+begin
+  // If allowed names array is empty then keep all items
+  if Length(AAllowedNames) = 0 then
+    Exit;
+
+  // Iterate backwards to safely remove items whose name is neither allowed nor excepted
+  for i := Count - 1 downto 0 do
+  begin
+    // Extract the part before '=' as the name
+    NamePart := Strings[i];
+    EqPos := Pos('=', NamePart);
+    if EqPos > 0 then
+      NamePart := Copy(NamePart, 1, EqPos - 1);
+
+    Allowed := False;
+    for j := Low(AAllowedNames) to High(AAllowedNames) do
+    begin
+      if NamePart = AAllowedNames[j] then
+      begin
+        Allowed := True;
+        Break;
+      end;
+    end;
+
+    Exc := False;
+    if not Allowed then
+    begin
+      for j := Low(AExceptNames) to High(AExceptNames) do
+      begin
+        if NamePart = AExceptNames[j] then
+        begin
+          Exc := True;
+          Break;
+        end;
+      end;
+    end;
+
+    if (not Allowed) and (not Exc) then
+      Delete(i);
   end;
 end;
 

@@ -71,10 +71,10 @@ type
   { Helper methods for TCustomCheckListBox }
   TCustomCheckListBoxHelper = class helper for TCustomCheckListBox
   public
-    procedure CheckSelection(Value: boolean; Invert:Boolean = False);
+    procedure CheckSelection(Value: boolean; Invert: boolean = False);
     procedure DrawCheckListItem(Canvas: Graphics.TCanvas; const ARect: Classes.TRect; State: LCLType.TOwnerDrawState;
       Checked: boolean; Enabled: boolean; Focused: boolean; BackgroundColor: Graphics.TColor; TextColor: Graphics.TColor;
-      const Text: string; Icon: Graphics.TBitmap);
+      const Text: string; Icon: Graphics.TBitmap; DarkMode: boolean);
   end;
 
   { Helper methods for TColorBox }
@@ -492,7 +492,7 @@ end;
 
 { TCustomListBoxHelper}
 
-procedure TCustomCheckListBoxHelper.CheckSelection(Value: boolean; Invert:Boolean = False);
+procedure TCustomCheckListBoxHelper.CheckSelection(Value: boolean; Invert: boolean = False);
 var
   I: integer;
 begin
@@ -503,7 +503,7 @@ end;
 
 procedure TCustomCheckListBoxHelper.DrawCheckListItem(Canvas: Graphics.TCanvas; const ARect: Classes.TRect;
   State: LCLType.TOwnerDrawState; Checked: boolean; Enabled: boolean; Focused: boolean; BackgroundColor: Graphics.TColor;
-  TextColor: Graphics.TColor; const Text: string; Icon: Graphics.TBitmap);
+  TextColor: Graphics.TColor; const Text: string; Icon: Graphics.TBitmap; DarkMode: boolean);
 const
   PADDING = 4;
 var
@@ -533,53 +533,73 @@ begin
   // Calculate checkbox rectangle (vertically centered)
   CheckRect := Bounds(ARect.Left + 2, ARect.Top + (ARect.Height - CheckSize.cy) div 2, CheckSize.cx, CheckSize.cy);
 
-  // Draw checkbox
-  if ThemeServices.ThemesEnabled then
+  if DarkMode then
   begin
+    // Draw custom checkbox for dark mode: white border, dark gray background, white checkmark
+    Canvas.Pen.Color := clGray;
+    Canvas.Brush.Color := TColor($2D2D2D); // Dark gray, not pure black
+    Canvas.Rectangle(CheckRect);
+
     if Checked then
     begin
-      if not Enabled then
-        Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedDisabled)
-      else if (LCLType.odSelected in State) and Focused then
-        Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedHot)
-      else
-        Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedNormal);
-    end
-    else
-    begin
-      if not Enabled then
-        Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedDisabled)
-      else if (LCLType.odSelected in State) and Focused then
-        Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedHot)
-      else
-        Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedNormal);
+      Canvas.Pen.Color := clSilver;
+      Canvas.Pen.Width := 2;
+      Canvas.MoveTo(CheckRect.Left + 3, CheckRect.Top + CheckRect.Height div 2);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2, CheckRect.Top + CheckRect.Height - 4);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 4, CheckRect.Top + 3);
+      Canvas.Pen.Width := 1;
     end;
-
-    ThemeServices.DrawElement(Canvas.Handle, Details, CheckRect, nil);
   end
   else
   begin
-    {$IFDEF WINDOWS}
-    // Windows classic fallback
-    DrawFrameControl(
-      Canvas.Handle,
-      CheckRect,
-      DFC_BUTTON,
-      DFCS_BUTTONCHECK or IfThen(Checked, DFCS_CHECKED, 0)
-      );
-    {$ELSE}
-    // Simple cross-platform fallback when themes are disabled
-    Canvas.Pen.Color := clWindowFrame;
-    Canvas.Brush.Color := clWindow;
-    Canvas.Rectangle(CheckRect);
-    if Checked then
+    // Draw checkbox using system theme (light mode or Linux)
+    if ThemeServices.ThemesEnabled then
     begin
-      Canvas.Pen.Color := clWindowText;
-      Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2, CheckRect.Top + CheckRect.Height - 2);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 2);
+      if Checked then
+      begin
+        if not Enabled then
+          Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedDisabled)
+        else if (LCLType.odSelected in State) and Focused then
+          Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedHot)
+        else
+          Details := ThemeServices.GetElementDetails(tbCheckBoxCheckedNormal);
+      end
+      else
+      begin
+        if not Enabled then
+          Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedDisabled)
+        else if (LCLType.odSelected in State) and Focused then
+          Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedHot)
+        else
+          Details := ThemeServices.GetElementDetails(tbCheckBoxUncheckedNormal);
+      end;
+
+      ThemeServices.DrawElement(Canvas.Handle, Details, CheckRect, nil);
+    end
+    else
+    begin
+      {$IFDEF WINDOWS}
+      // Windows classic fallback
+      DrawFrameControl(
+        Canvas.Handle,
+        CheckRect,
+        DFC_BUTTON,
+        DFCS_BUTTONCHECK or IfThen(Checked, DFCS_CHECKED, 0)
+        );
+      {$ELSE}
+      // Simple cross-platform fallback when themes are disabled
+      Canvas.Pen.Color := clWindowFrame;
+      Canvas.Brush.Color := clWindow;
+      Canvas.Rectangle(CheckRect);
+      if Checked then
+      begin
+        Canvas.Pen.Color := clWindowText;
+        Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2);
+        Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2, CheckRect.Top + CheckRect.Height - 2);
+        Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 2);
+      end;
+      {$ENDIF}
     end;
-    {$ENDIF}
   end;
 
   TextLeft := CheckRect.Right + PADDING;
