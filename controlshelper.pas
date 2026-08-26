@@ -72,8 +72,8 @@ type
   TCustomCheckListBoxHelper = class helper for TCustomCheckListBox
   public
     procedure CheckSelection(Value: boolean; Invert: boolean = False);
-    procedure DrawCheckListItem(Canvas: Graphics.TCanvas; const ARect: Classes.TRect; State: LCLType.TOwnerDrawState;
-      Checked: boolean; Enabled: boolean; Focused: boolean; BackgroundColor: Graphics.TColor; TextColor: Graphics.TColor;
+    procedure DrawCheckListItem(const ARect: Classes.TRect; State: LCLType.TOwnerDrawState; Checked: boolean;
+      Enabled: boolean; Focused: boolean; BackgroundColor: Graphics.TColor; TextColor: Graphics.TColor;
       const Text: string; Icon: Graphics.TBitmap; DarkMode: boolean);
   end;
 
@@ -501,9 +501,9 @@ begin
       Checked[I] := iif(Invert, not Checked[I], Value);
 end;
 
-procedure TCustomCheckListBoxHelper.DrawCheckListItem(Canvas: Graphics.TCanvas; const ARect: Classes.TRect;
-  State: LCLType.TOwnerDrawState; Checked: boolean; Enabled: boolean; Focused: boolean; BackgroundColor: Graphics.TColor;
-  TextColor: Graphics.TColor; const Text: string; Icon: Graphics.TBitmap; DarkMode: boolean);
+procedure TCustomCheckListBoxHelper.DrawCheckListItem(const ARect: Classes.TRect; State: LCLType.TOwnerDrawState;
+  Checked: boolean; Enabled: boolean; Focused: boolean; BackgroundColor: Graphics.TColor; TextColor: Graphics.TColor;
+  const Text: string; Icon: Graphics.TBitmap; DarkMode: boolean);
 const
   PADDING = 4;
 var
@@ -511,7 +511,9 @@ var
   CheckSize: TSize;
   Details: TThemedElementDetails;
   TextLeft: integer;
+  Canvas: Graphics.TCanvas;
 begin
+  Canvas := Self.Canvas;
   // Draw background according to selection state
   if LCLType.odSelected in State then
   begin
@@ -531,7 +533,7 @@ begin
   CheckSize.cy := GetSystemMetrics(SM_CYMENUCHECK);
 
   // Calculate checkbox rectangle (vertically centered)
-  CheckRect := Bounds(ARect.Left + 2, ARect.Top + (ARect.Height - CheckSize.cy) div 2, CheckSize.cx, CheckSize.cy);
+  CheckRect := Bounds(ARect.Left + 3, ARect.Top + (ARect.Height - CheckSize.cy) div 2 + 1, CheckSize.cx - 2, CheckSize.cy - 2);
 
   if DarkMode then
   begin
@@ -543,11 +545,12 @@ begin
     if Checked then
     begin
       Canvas.Pen.Color := clSilver;
-      Canvas.Pen.Width := 2;
-      Canvas.MoveTo(CheckRect.Left + 3, CheckRect.Top + CheckRect.Height div 2);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2, CheckRect.Top + CheckRect.Height - 4);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 4, CheckRect.Top + 3);
-      Canvas.Pen.Width := 1;
+      Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2 - 1);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2 - 1, CheckRect.Top + CheckRect.Height - 4 - 1);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 3 - 1);
+      Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2 - 1, CheckRect.Top + CheckRect.Height - 4);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 3);
     end;
   end
   else
