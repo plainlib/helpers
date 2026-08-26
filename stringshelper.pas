@@ -24,7 +24,7 @@ type
   TStringsHelper = class helper for TStrings
   public
     // Searches for the first string containing SubText
-    function FindIndex(const AValue: string): integer;
+    function FindIndex(const AValue: string; CaseSensitive: boolean = True): integer;
 
     // Finds a name=value pair by its value part (case‑sensitive by default)
     function FindEqualIndex(const AValue: string; CaseSensitive: boolean = True): integer;
@@ -91,13 +91,14 @@ implementation
 
 {%Region -fold StringsHelper}
 
-function TStringsHelper.FindIndex(const AValue: string): integer;
+function TStringsHelper.FindIndex(const AValue: string; CaseSensitive: boolean = True): integer;
 var
   i: integer;
 begin
   Result := -1;
   for i := 0 to Self.Count - 1 do
-    if Pos(AValue, Self[i]) > 0 then
+    if (CaseSensitive and (Pos(AValue, Self[i]) > 0)) or (not CaseSensitive and
+      (UTF8Pos(UTF8LowerCase(AValue), UTF8LowerCase(Self[i])) > 0)) then
     begin
       Result := i;
       Exit;
