@@ -75,10 +75,10 @@ type
     procedure RemoveAll(const AName: string);
 
     // Restrict list to items that exist in the allowed array
-    procedure RestrictTo(const AAllowed: TStringArray);
+    procedure RestrictTo(const AAllowed: TStringArray; ACaseSensitive: boolean = True);
 
     // Restrict list by name part before '=' using allowed names and exceptions
-    procedure RestrictToNames(const AAllowedNames, AExceptNames: TStringArray);
+    procedure RestrictToNames(const AAllowedNames, AExceptNames: TStringArray; ACaseSensitive: boolean = True);
   end;
 
   { TStringArrayHelper }
@@ -511,7 +511,7 @@ begin
   end;
 end;
 
-procedure TStringsHelper.RestrictTo(const AAllowed: TStringArray);
+procedure TStringsHelper.RestrictTo(const AAllowed: TStringArray; ACaseSensitive: boolean = True);
 var
   i, j: integer;
   Found: boolean;
@@ -526,10 +526,21 @@ begin
     Found := False;
     for j := Low(AAllowed) to High(AAllowed) do
     begin
-      if Strings[i] = AAllowed[j] then
+      if ACaseSensitive then
       begin
-        Found := True;
-        Break;
+        if Strings[i] = AAllowed[j] then
+        begin
+          Found := True;
+          Break;
+        end;
+      end
+      else
+      begin
+        if SameText(Strings[i], AAllowed[j]) then
+        begin
+          Found := True;
+          Break;
+        end;
       end;
     end;
 
@@ -538,7 +549,7 @@ begin
   end;
 end;
 
-procedure TStringsHelper.RestrictToNames(const AAllowedNames, AExceptNames: TStringArray);
+procedure TStringsHelper.RestrictToNames(const AAllowedNames, AExceptNames: TStringArray; ACaseSensitive: boolean = True);
 var
   i: integer;
   NamePart: string;
@@ -563,10 +574,21 @@ begin
     Allowed := False;
     for j := Low(AAllowedNames) to High(AAllowedNames) do
     begin
-      if NamePart = AAllowedNames[j] then
+      if ACaseSensitive then
       begin
-        Allowed := True;
-        Break;
+        if NamePart = AAllowedNames[j] then
+        begin
+          Allowed := True;
+          Break;
+        end;
+      end
+      else
+      begin
+        if SameText(NamePart, AAllowedNames[j]) then
+        begin
+          Allowed := True;
+          Break;
+        end;
       end;
     end;
 
@@ -575,10 +597,21 @@ begin
     begin
       for j := Low(AExceptNames) to High(AExceptNames) do
       begin
-        if NamePart = AExceptNames[j] then
+        if ACaseSensitive then
         begin
-          Exc := True;
-          Break;
+          if NamePart = AExceptNames[j] then
+          begin
+            Exc := True;
+            Break;
+          end;
+        end
+        else
+        begin
+          if SameText(NamePart, AExceptNames[j]) then
+          begin
+            Exc := True;
+            Break;
+          end;
         end;
       end;
     end;
