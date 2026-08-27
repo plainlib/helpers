@@ -801,11 +801,17 @@ end;
 
 class procedure TOS.ForceRestartApp;
 var
+  {$IFDEF MSWINDOWS}
   ExePath: string;
   StartupInfo: TStartupInfo;
   ProcessInfo: TProcessInformation;
+  {$ELSE}
+  ExePath: string;
+  AProcess: TProcess;
+  {$ENDIF}
 begin
-  ExePath := string.Empty;
+  {$IFDEF MSWINDOWS}
+  ExePath := '';
   StartupInfo := Default(TStartupInfo);
   ProcessInfo := Default(TProcessInformation);
 
@@ -825,6 +831,23 @@ begin
 
   // Forcefully terminate the current process
   TerminateProcess(GetCurrentProcess, 1);
+  {$ELSE}
+  // Linux implementation
+  ExePath := ExpandFileName(ParamStr(0));
+
+  // Launch a new instance of the application
+  AProcess := TProcess.Create(nil);
+  try
+    AProcess.Executable := ExePath;
+    AProcess.Options := [poDetached];
+    AProcess.Execute;
+  finally
+    AProcess.Free;
+  end;
+
+  // Forcefully terminate the current process
+  Halt(1);
+  {$ENDIF}
 end;
 
 {$IFDEF WINDOWS}
