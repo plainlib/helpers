@@ -613,8 +613,9 @@ begin
   if baseDir = '' then
     baseDir := SysUtils.GetEnvironmentVariable('APPDATA');
 
-  // Portable mode: settings file exists near exe and not in default data directory
-  Result := FileExists(ConcatPaths([exeDir, SettingsFile])) and
+  // Portable mode: settings file or portable marker exists near exe and not in default data directory
+  Result := (FileExists(ConcatPaths([exeDir, SettingsFile])) or
+             FileExists(ConcatPaths([exeDir, 'portable']))) and
             (ExcludeTrailingPathDelimiter(exeDir) <> ExcludeTrailingPathDelimiter(baseDir));
   {$ELSE}
   Result := False;
