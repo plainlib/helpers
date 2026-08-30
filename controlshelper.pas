@@ -214,6 +214,10 @@ begin
   begin
     s := Clipboard.AsText;
 
+    // Exit if clipboard text is empty
+    if s = '' then
+      Exit;
+
     s := StringReplace(s, #13#10, #10, [rfReplaceAll]); // Windows CRLF -> LF
     s := StringReplace(s, #13, #10, [rfReplaceAll]);   // Macintosh CR -> LF
     s := StringReplace(s, #10, LineEnding, [rfReplaceAll]); // LF -> platform line ending
