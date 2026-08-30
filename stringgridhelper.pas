@@ -13,6 +13,8 @@ interface
 
 uses
   Classes,
+  Controls,
+  Dialogs,
   StdCtrls,
   SysUtils,
   Graphics,
@@ -40,7 +42,7 @@ type
   public
     // Paste TSV text from clipboard into the grid.
     // Respects selection, ReadOnly columns, and multiline quoted cells.
-    procedure PasteFromClipboard;
+    procedure PasteFromClipboard(AConfirmMessage: string = '');
 
     // Draw text in the grid with highlighting of the found substrings
     procedure DrawHighlightedText(ACanvas: TCanvas; ARect: TRect; Colors: TGridDrawColors; const AText, AFilterText: string;
@@ -64,7 +66,7 @@ implementation
 
 {%Region -fold TStringGridHelper}
 
-procedure TStringGridHelper.PasteFromClipboard;
+procedure TStringGridHelper.PasteFromClipboard(AConfirmMessage: string = '');
 var
   TextData: string;
   Stream: TStringStream;
@@ -279,6 +281,14 @@ begin
   if not Clipboard.HasFormat(CF_TEXT) then Exit;
   TextData := Clipboard.AsText;
   if TextData = '' then Exit;
+
+  // Ask user if pasting multiple lines from a single cell will overwrite cells below
+  if (AConfirmMessage <> '') and ((Pos(#10, TextData) > 0) or (Pos(#13, TextData) > 0)) and
+    (Self.Selection.Top = Self.Selection.Bottom) and (Self.Selection.Left = Self.Selection.Right) then
+  begin
+    if MessageDlg(AConfirmMessage, mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+      Exit;
+  end;
 
   Stream := TStringStream.Create(TextData);
   try
