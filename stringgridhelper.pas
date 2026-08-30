@@ -354,6 +354,12 @@ var
   TotalGroupWidth: integer;
   I, J: integer;
   IsLineBreak: boolean;
+  TempBuf: string;
+  TempWidth: integer;
+  TempPos: integer;
+  CharLen: integer;
+  Symbol: string;
+  SymbolWidth: integer;
 
   // Dedicated variables for the last line's extent (used by the hint)
   LastLineStartX: integer;   // left edge of the last drawn line
@@ -580,10 +586,51 @@ begin
           else
             WordWidth := ACanvas.TextWidth(CurrentWord);
 
-          SetLength(LineWords, Length(LineWords) + 1);
-          LineWords[High(LineWords)].word := CurrentWord;
-          LineWords[High(LineWords)].Width := WordWidth;
-          LineWords[High(LineWords)].IsMatch := Range^.IsMatch;
+          // Split long words without spaces into smaller chunks if word wrap is enabled
+          if AWordWrap and (WordWidth > ARect.Width) and (Fragment[WordStart] <> ' ') and (Fragment[WordStart] <> #10) and
+            (Fragment[WordStart] <> #13) then
+          begin
+            TempBuf := '';
+            TempWidth := 0;
+            TempPos := 1;
+            while TempPos <= Length(CurrentWord) do
+            begin
+              {$NOTES OFF}
+              CharLen := UTF8CodepointSize(@CurrentWord[TempPos]);
+              {$NOTES ON}
+              Symbol := Copy(CurrentWord, TempPos, CharLen);
+              SymbolWidth := ACanvas.TextWidth(Symbol);
+
+              if (TempBuf <> '') and (TempWidth + SymbolWidth > ARect.Width) then
+              begin
+                SetLength(LineWords, Length(LineWords) + 1);
+                LineWords[High(LineWords)].word := TempBuf;
+                LineWords[High(LineWords)].Width := TempWidth;
+                LineWords[High(LineWords)].IsMatch := Range^.IsMatch;
+                TempBuf := '';
+                TempWidth := 0;
+              end;
+
+              TempBuf := TempBuf + Symbol;
+              TempWidth := TempWidth + SymbolWidth;
+              Inc(TempPos, CharLen);
+            end;
+
+            if TempBuf <> '' then
+            begin
+              SetLength(LineWords, Length(LineWords) + 1);
+              LineWords[High(LineWords)].word := TempBuf;
+              LineWords[High(LineWords)].Width := TempWidth;
+              LineWords[High(LineWords)].IsMatch := Range^.IsMatch;
+            end;
+          end
+          else
+          begin
+            SetLength(LineWords, Length(LineWords) + 1);
+            LineWords[High(LineWords)].word := CurrentWord;
+            LineWords[High(LineWords)].Width := WordWidth;
+            LineWords[High(LineWords)].IsMatch := Range^.IsMatch;
+          end;
 
           WordStart := WordEnd + 1;
         end;
