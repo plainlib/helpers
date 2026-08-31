@@ -42,6 +42,7 @@ type
     procedure UnlockUpdate;
     procedure PulseUpdate;
     procedure RedrawNow;
+    procedure FitToScreen;
   end;
 
   { Helper methods for TMemo }
@@ -202,6 +203,78 @@ begin
     UpdateWindow(WinCtrl.Handle);
   end;
   {$ENDIF}
+end;
+
+procedure TControlHelper.FitToScreen;
+var
+  WinRect: TRect;
+  NewLeft: integer;
+  NewTop: integer;
+  LimitRect: TRect; // Actual screen area to keep the form inside
+  ActualWidth: integer;
+  ActualHeight: integer;
+  LimitWidth: integer;
+  LimitHeight: integer;
+begin
+  if Self is TForm then
+  begin
+    // Get actual window rectangle including non-client area
+    WinRect := Default(TRect);
+    if GetWindowRect(TForm(Self).Handle, WinRect) then
+    begin
+      // Select full desktop for stay-on-top forms, otherwise work area only
+      if TForm(Self).FormStyle = fsSystemStayOnTop then
+        LimitRect := Screen.DesktopRect
+      else
+        LimitRect := Screen.WorkAreaRect;
+
+      // Check if form is larger than available screen area
+      ActualWidth := WinRect.Right - WinRect.Left;
+      ActualHeight := WinRect.Bottom - WinRect.Top;
+      LimitWidth := LimitRect.Right - LimitRect.Left;
+      LimitHeight := LimitRect.Bottom - LimitRect.Top;
+
+      // Resize form to fit screen if needed
+      if ActualWidth > LimitWidth then
+        TForm(Self).Width := TForm(Self).Width - (ActualWidth - LimitWidth);
+      if ActualHeight > LimitHeight then
+        TForm(Self).Height := TForm(Self).Height - (ActualHeight - LimitHeight);
+
+      // Re-get window rectangle if size changed, to adjust position correctly
+      if (ActualWidth > LimitWidth) or (ActualHeight > LimitHeight) then
+      begin
+        WinRect := Default(TRect);
+        if not GetWindowRect(TForm(Self).Handle, WinRect) then
+          Exit;
+      end;
+
+      // Adjust position only if not centered by system
+      if TForm(Self).Position <> poDesktopCenter then
+      begin
+        NewLeft := TForm(Self).Left;
+        NewTop := TForm(Self).Top;
+
+        // Keep right edge inside screen
+        if WinRect.Right > LimitRect.Right then
+          NewLeft := TForm(Self).Left - (WinRect.Right - LimitRect.Right);
+
+        // Keep bottom edge inside screen
+        if WinRect.Bottom > LimitRect.Bottom then
+          NewTop := TForm(Self).Top - (WinRect.Bottom - LimitRect.Bottom);
+
+        // Keep left edge inside screen
+        if NewLeft < LimitRect.Left then
+          NewLeft := LimitRect.Left;
+
+        // Keep top edge inside screen
+        if NewTop < LimitRect.Top then
+          NewTop := LimitRect.Top;
+
+        TForm(Self).Left := NewLeft;
+        TForm(Self).Top := NewTop;
+      end;
+    end;
+  end;
 end;
 
 { TMemoHelper }
