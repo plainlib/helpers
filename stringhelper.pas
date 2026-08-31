@@ -38,148 +38,151 @@ type
   { TStringExHelper }
 
   TStringHelperEx = type helper(TStringHelper) for string
-    /// Converts a hex color string (e.g. '#RRGGBB' or 'RRGGBB') to a TColor value.
+    // Converts a hex color string (e.g. '#RRGGBB' or 'RRGGBB') to a TColor value.
     function ToColor: TColor;
 
-    /// Replaces escape sequences like \n, \r, \t, \\, \" and Unicode \uXXXX with their actual characters.
+    // Replaces escape sequences like \n, \r, \t, \\, \" and Unicode \uXXXX with their actual characters.
     function UnescapeUnicode: string;
 
-    /// Escapes backslashes, double quotes, line breaks and tabs for safe embedding in JSON or similar text.
+    // Escapes backslashes, double quotes, line breaks and tabs for safe embedding in JSON or similar text.
     function EscapeText: string;
 
-    /// Encodes the string for use in a URL query parameter or path segment, escaping special characters.
+    // Encodes the string for use in a URL query parameter or path segment, escaping special characters.
     function EncodeURLElement: string;
 
-    /// Decodes an HTTP/URL encoded string (e.g. %20 → space, + → space).
+    // Decodes an HTTP/URL encoded string (e.g. %20 → space, + → space).
     function HTTPDecode: string;
 
-    /// Truncates a UTF-8 string to at most MaxBytes, optionally taking into account later encoding expansion.
+    // Truncates a UTF-8 string to at most MaxBytes, optionally taking into account later encoding expansion.
     function Utf8Truncate(MaxBytes: integer; Encode: boolean): string;
 
-    /// Truncates a UTF-8 string by measuring the actual encoded length of each character, then returns the raw UTF-8 prefix.
+    // Truncates a UTF-8 string by measuring the actual encoded length of each character, then returns the raw UTF-8 prefix.
     function Utf8TruncateWithEncoding(MaxBytes: integer; Encode: boolean): string;
 
-    /// Returns True if the trimmed string starts with '{' or '[', indicating a possible JSON object or array.
+    // Returns True if the trimmed string starts with '{' or '[', indicating a possible JSON object or array.
     function IsJson: boolean;
 
-    /// Removes empty string fields from a JSON object (especially inside "params" and "lang") or empty URL parameters.
+    // Removes empty string fields from a JSON object (especially inside "params" and "lang") or empty URL parameters.
     function RemoveEmptyParams: string;
 
-    /// Saves the string content to a UTF-8 text file with the given filename.
+    // Saves the string content to a UTF-8 text file with the given filename.
     procedure SaveStringToFile(const FileName: string);
 
-    /// Saves the string to a temporary file and opens it with the default text editor.
+    // Saves the string to a temporary file and opens it with the default text editor.
     procedure OpenStringInTextEditor;
 
-    /// Returns the string without its trailing line break (CRLF, LF or CR), if present.
+    // Returns the string without its trailing line break (CRLF, LF or CR), if present.
     function RemoveTrailingLineBreak: string;
 
-    /// Extracts a text sample of at most MaxLen characters, trying to break at a sentence end or space.
+    // Extracts a text sample of at most MaxLen characters, trying to break at a sentence end or space.
     function ExtractTextSample(MaxLen: integer = 500): string;
 
-    /// Tries to parse and pretty-print the string as JSON; returns True on success and the formatted result in AFormatted.
+    // Tries to parse and pretty-print the string as JSON; returns True on success and the formatted result in AFormatted.
     function TryFormatJson(out AFormatted: string): boolean;
 
-    /// Tries to parse a string in the form "IP:Port" (e.g. 127.0.0.1:8080) and returns the valid IP and port.
+    // Tries to parse a string in the form "IP:Port" (e.g. 127.0.0.1:8080) and returns the valid IP and port.
     function TryParseIPPort(out IP: string; out Port: word): boolean;
 
-    /// Loads the string as text into a TStringList; optional trailing empty line when string ends with newline
+    // Loads the string as text into a TStringList; optional trailing empty line when string ends with newline
     function ToStringList(TrimAtEnd: boolean = False): TStringList;
 
-    /// Tries to interpret the string as an ISO 8601 date/time; returns True on success
+    // Tries to interpret the string as an ISO 8601 date/time; returns True on success
     function ToDateTimeISOTry(out ADateTime: TDateTime): boolean;
 
-    /// Tries to convert the string to a Double, limiting length to 15 characters and trying multiple decimal separators
+    // Tries to convert the string to a Double, limiting length to 15 characters and trying multiple decimal separators
     function ToFloatTry(out Value: double; MaxLength: integer = 15): boolean;
 
-    /// Splits the string by spaces, keeping at most Count+1 parts
+    // Splits the string by spaces, keeping at most Count+1 parts
     function SplitByFirstSpaces(Count: integer = 1): TStringArray;
 
-    /// Checks if the string starts with a comparison operator, returning the operator and the rest
+    // Checks if the string starts with a comparison operator, returning the operator and the rest
     function StartsWithOperator(out Op, Rest: string): boolean;
 
-    /// Returns True if the string begins with a bracket-surrounded capital letter followed by a space, e.g. "(A) "
+    // Returns True if the string begins with a bracket-surrounded capital letter followed by a space, e.g. "(A) "
     function StartsWithBracketAZ: boolean;
 
-    /// Detects whether the trimmed, lowercased string starts with one of the given "done" markers
+    // Detects whether the trimmed, lowercased string starts with one of the given "done" markers
     function StartsWithStrings(Strings: array of string): boolean;
 
-    /// Returns True if the string starts with the given character
+    // Returns True if the string starts with the given character
     function StartsWithChar(const Ch: char = SpaceChar): boolean;
 
-    /// Returns True if the string ends with the given character
+    // Returns True if the string ends with the given character
     function EndsWithChar(const Ch: char = SpaceChar): boolean;
 
-    /// Returns True if the trimmed string equals one of the given strings
+    // Returns True if the trimmed string equals one of the given strings
     function IsOneOf(Strings: array of string): boolean;
 
-    /// Removes a leading substring (and a following single space) from the string if present
+    // Removes a leading substring (and a following single space) from the string if present
     function RemoveStrings(Strings: array of string): string;
 
-    /// Replaces all tab characters (#9) with a single space
+    // Replaces all tab characters (#9) with a single space
     function ReplaceTabCharWithSpace: string;
 
-    /// Removes all spaces and trims the result
+    // Removes all spaces and trims the result
     function RemoveSpaceChar: string;
 
-    /// Replaces any line breaks with the HTML <br> tag
+    // Replaces any line breaks with the HTML <br> tag
     function ReplaceLineBreaks(Value: string = BrTag): string;
 
-    /// Removes up to MaxSpaces leading spaces
+    // Removes up to MaxSpaces leading spaces
     function TrimLeadingSpaces(MaxSpaces: integer = 1): string;
 
-    /// Removes up to MaxSpaces trailing spaces
+    // Removes up to MaxSpaces trailing spaces
     function TrimTrailingSpaces(MaxSpaces: integer = 1): string;
 
-    /// Percent-encodes all characters not in the safe set
+    // Percent-encodes all characters not in the safe set
     function AsEncodedUrl: string;
 
-    /// Checks whether a specific UTF-8 character in the string equals FindChar
+    // Checks whether a specific UTF-8 character in the string equals FindChar
     function IsUTF8Char(CharIndex: integer; FindChar: string = SpaceChar): boolean;
 
-    /// Returns the UTF-8 lower-case version of the string
+    // Returns the UTF-8 lower-case version of the string
     function UTF8Lower: string;
 
-    /// Returns the string repeated Count times
+    // Returns the string repeated Count times
     function RepeatString(Count: integer): string;
 
-    /// Renders the string as a monospace bitmap and converts it to a Unicode block-character representation
+    // Renders the string as a monospace bitmap and converts it to a Unicode block-character representation
     function ToASCIITextArt(const FontName: string = 'Monospace'; FontSize: integer = 12): string;
 
-    /// Validates whether the string is a well-formed email address, ignoring an optional "mailto:" prefix
+    // Validates whether the string is a well-formed email address, ignoring an optional "mailto:" prefix
     function IsEmail: boolean;
 
-    /// Validates whether the string is a URL (http, https, ftp) or contains a path separator
+    // Validates whether the string is a URL (http, https, ftp) or contains a path separator
     function IsUrlSimilar: boolean;
 
-    /// Returns True if the string starts with a known scheme (://, mailto:, tel:, sms:)
+    // Returns True if the string starts with a known scheme (://, mailto:, tel:, sms:)
     function HasUrlScheme: boolean;
 
-    /// Removes any backtick-enclosed blocks from the string, provided they are short enough
+    // Removes any backtick-enclosed blocks from the string, provided they are short enough
     function RemoveBacktickBlocks: string;
 
-    /// Returns the portion of the string before the first colon
+    // Returns the portion of the string before the first colon
     function SubStringBeforeColon: string;
 
-    /// Splits the string into name and hint parts at the first "//"
+    // Splits the string into name and hint parts at the first "//"
     procedure SplitStringByComment(out StartPart, EndPart: string);
 
-    /// Replaces each non-empty line with bullet characters matching the original line width, preserving line breaks.
+    // Split the string by SplitChars and return the parts as a dynamic array
+    function SplitIntoTwoParts(const SplitChars: string; Reverse: boolean = False): TStringArray;
+
+    // Replaces each non-empty line with bullet characters matching the original line width, preserving line breaks.
     function MaskTextWithBullets(ACanvas: TCanvas; const ALineEnding: string): string;
 
-    /// Deletes the first character if it equals Ch
+    // Deletes the first character if it equals Ch
     function DeleteFirstChar(const Ch: char): string;
 
-    /// Removes the first occurrence of SubStr (forward or reverse search)
+    // Removes the first occurrence of SubStr (forward or reverse search)
     function RemoveFirstSubstring(const SubStr: string; Reverse: boolean = False): string;
 
-    /// Adds a combining character after every character except newlines
+    // Adds a combining character after every character except newlines
     function ApplyCombiningChar(const ACombiningChar: string = #$0335): string;
 
-    /// Prepends a number of spaces (IndentLevel * Factor) to the string, modifying it in place
+    // Prepends a number of spaces (IndentLevel * Factor) to the string, modifying it in place
     procedure AddIndent(IndentLevel: integer; Factor: integer = 2);
 
-    /// Removes leading space pairs (2 spaces = 1 indent level) and returns the removed level
+    // Removes leading space pairs (2 spaces = 1 indent level) and returns the removed level
     function ExtractIndent(out AIndentLevel: integer): string;
 
     // Returns substring containing all whitespace characters at the beginning
@@ -233,25 +236,25 @@ type
 
   { String Ex Methods }
 
-/// Searches backwards for SubStr in S starting at Offset; returns 1-based position or 0 if not found.
+// Searches backwards for SubStr in S starting at Offset; returns 1-based position or 0 if not found.
 function PosExReverse(const SubStr, S: unicodestring; Offset: SizeInt = -1): SizeInt;
 
-/// Returns the longest string from an array of strings.
-function LongestString(const Values: array of string): string;
+// Returns the longest string from an array of strings.
+function LongestString(const Values: TStringArray; MinLength: integer = 0): string;
 
-/// Shows a lightweight modal input dialog with OK/Cancel; returns True and updates AValue on OK.
+// Shows a lightweight modal input dialog with OK/Cancel; returns True and updates AValue on OK.
 function InputQueryLite(const ACaption, APrompt: string; var AValue: string): boolean;
 
-/// Converts a TDateTime value to ISO 8601 string (yyyy-mm-dd or yyyy-mm-ddThh:mm:ss), empty string if zero.
+// Converts a TDateTime value to ISO 8601 string (yyyy-mm-dd or yyyy-mm-ddThh:mm:ss), empty string if zero.
 function DateTimeToStringISO(Value: TDateTime; ADisplayTime: boolean = True): string;
 
-/// Converts a TDateTime value to a string using system short date and long time format, empty string if zero.
+// Converts a TDateTime value to a string using system short date and long time format, empty string if zero.
 function DateTimeToString(Value: TDateTime; ADisplayTime: boolean = True): string;
 
-/// Converts a floating point value to its string representation using default format settings.
+// Converts a floating point value to its string representation using default format settings.
 function FloatToString(Value: double): string;
 
-/// Converts a floating point value to its string representation using the provided TFormatSettings.
+// Converts a floating point value to its string representation using the provided TFormatSettings.
 function FloatToString(Value: double; FS: TFormatSettings): string;
 
 implementation
@@ -293,7 +296,7 @@ begin
   end;
 end;
 
-function LongestString(const Values: array of string): string;
+function LongestString(const Values: TStringArray; MinLength: integer = 0): string;
 var
   I: integer;
 begin
@@ -301,6 +304,10 @@ begin
   for I := Low(Values) to High(Values) do
     if Length(Values[I]) > Length(Result) then
       Result := Values[I];
+
+  // If the longest string is shorter than the required minimum, return empty
+  if Length(Result) < MinLength then
+    Result := string.Empty;
 end;
 
 function InputQueryLite(const ACaption, APrompt: string; var AValue: string): boolean;
@@ -1425,6 +1432,37 @@ begin
   end
   else
     StartPart := SysUtils.Trim(Self);
+end;
+
+function TStringHelperEx.SplitIntoTwoParts(const SplitChars: string; Reverse: boolean = False): TStringArray;
+var
+  PosSplit: integer;
+  Part1: string = '';
+  Part2: string = '';
+begin
+  Result := nil;
+
+  // Find the split position either from start or end
+  if Reverse then
+    PosSplit := RPos(SplitChars, Self)
+  else
+    PosSplit := Pos(SplitChars, Self);
+
+  if PosSplit > 0 then
+  begin
+    // Extract and trim both parts around the split string
+    Part1 := SysUtils.Trim(System.Copy(Self, 1, PosSplit - 1));
+    Part2 := SysUtils.Trim(System.Copy(Self, PosSplit + System.Length(SplitChars), MaxInt));
+    SetLength(Result, 2);
+    Result[0] := Part1;
+    Result[1] := Part2;
+  end
+  else
+  begin
+    // No split found, return the whole trimmed string as a single element
+    SetLength(Result, 1);
+    Result[0] := SysUtils.Trim(Self);
+  end;
 end;
 
 function TStringHelperEx.MaskTextWithBullets(ACanvas: TCanvas; const ALineEnding: string): string;
