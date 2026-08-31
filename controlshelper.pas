@@ -610,24 +610,32 @@ begin
   CheckSize.cy := GetSystemMetrics(SM_CYMENUCHECK);
 
   // Calculate checkbox rectangle (vertically centered)
-  CheckRect := Bounds(ARect.Left + 3, ARect.Top + (ARect.Height - CheckSize.cy) div 2 + 1, CheckSize.cx - 2, CheckSize.cy - 2);
+  CheckRect := Bounds(ARect.Left + 4, ARect.Top + (ARect.Height - CheckSize.cy) div 2 + 2, CheckSize.cx - 4, CheckSize.cy - 4);
 
   if DarkMode then
   begin
     // Draw custom checkbox for dark mode: white border, dark gray background, white checkmark
-    Canvas.Pen.Color := clGray;
-    Canvas.Brush.Color := TColor($2D2D2D); // Dark gray, not pure black
+    if Enabled then
+    begin
+      Canvas.Pen.Color := clSilver;
+      Canvas.Brush.Color := TColor($2D2D2D); // Dark gray
+    end
+    else
+    begin
+      Canvas.Pen.Color := clGray;
+      Canvas.Brush.Color := TColor($202020); // Darker gray
+    end;
     Canvas.Rectangle(CheckRect);
 
     if Checked then
     begin
-      Canvas.Pen.Color := clSilver;
+      Canvas.Pen.Color := clGray;
       Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2 - 1);
       Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2 - 1, CheckRect.Top + CheckRect.Height - 4 - 1);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 3 - 1);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 4 - 1);
       Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2);
       Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2 - 1, CheckRect.Top + CheckRect.Height - 4);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 3);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 4);
     end;
   end
   else
