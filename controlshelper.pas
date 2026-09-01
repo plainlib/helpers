@@ -589,6 +589,7 @@ var
   Details: TThemedElementDetails;
   TextLeft: integer;
   Canvas: Graphics.TCanvas;
+  Step, Border: integer;
 begin
   Canvas := Self.Canvas;
   // Draw background according to selection state
@@ -609,8 +610,18 @@ begin
   CheckSize.cx := GetSystemMetrics(SM_CXMENUCHECK);
   CheckSize.cy := GetSystemMetrics(SM_CYMENUCHECK);
 
+  Step := (Screen.PixelsPerInch - 96) div 24;
+  if Step < 0 then
+    Step := 0;
+  Border := Step * (Step + 1) div 2;
+
   // Calculate checkbox rectangle (vertically centered)
-  CheckRect := Bounds(ARect.Left + 4, ARect.Top + (ARect.Height - CheckSize.cy) div 2 + 2, CheckSize.cx - 4, CheckSize.cy - 4);
+  if DarkMode then
+    CheckRect := Bounds(ARect.Left + 3 + Border, ARect.Top + (ARect.Height - CheckSize.cy) div 2 + 1 + Border,
+      CheckSize.cx - 2 - Border * 2, CheckSize.cy - 2 - Border * 2)
+  else
+    CheckRect := Bounds(ARect.Left + 3, ARect.Top + (ARect.Height - CheckSize.cy) div 2 + 1, CheckSize.cx -
+      2 - Border, CheckSize.cy - 2 - Border);
 
   if DarkMode then
   begin
@@ -629,13 +640,23 @@ begin
 
     if Checked then
     begin
-      Canvas.Pen.Color := clGray;
-      Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2 - 1);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2 - 1, CheckRect.Top + CheckRect.Height - 4 - 1);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 4 - 1);
-      Canvas.MoveTo(CheckRect.Left + 2, CheckRect.Top + CheckRect.Height div 2);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2 - 1, CheckRect.Top + CheckRect.Height - 4);
-      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2, CheckRect.Top + 4);
+      Border := Ord(Screen.PixelsPerInch <> 96);
+
+      if Enabled then
+      begin
+        Canvas.Pen.Color := clGray;
+        Canvas.MoveTo(CheckRect.Left + 2 + Border, CheckRect.Top + CheckRect.Height div 2 + 1);
+        Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2 - 2, CheckRect.Top + CheckRect.Height - 3 - 1 - Border);
+        Canvas.LineTo(CheckRect.Left + CheckRect.Width - 2 - Border, CheckRect.Top + 2 + Border);
+      end;
+
+      if Enabled then
+        Canvas.Pen.Color := clSilver
+      else
+        Canvas.Pen.Color := clGray;
+      Canvas.MoveTo(CheckRect.Left + 1 + Border, CheckRect.Top + CheckRect.Height div 2 + 1);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width div 2 - 2, CheckRect.Top + CheckRect.Height - 3 - Border);
+      Canvas.LineTo(CheckRect.Left + CheckRect.Width - 1 - Border, CheckRect.Top + 2 + Border);
     end;
   end
   else
