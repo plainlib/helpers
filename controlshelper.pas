@@ -37,12 +37,15 @@ type
   TControlHelper = class helper for TWinControl
   public
     function GetActualFontSize: integer;
+    function GetComposited: boolean;
     procedure SetComposited(AEnabled: boolean);
     procedure LockUpdate;
     procedure UnlockUpdate;
     procedure PulseUpdate;
     procedure RedrawNow;
     procedure FitToScreen;
+
+    property Composited: boolean read GetComposited write SetComposited;
   end;
 
   { Helper methods for TMemo }
@@ -89,6 +92,9 @@ implementation
 {$IFDEF WINDOWS}
 uses
   Windows;
+
+const
+  WS_EX_COMPOSITED = $02000000;
 {$ENDIF}
 
 { TControl }
@@ -102,10 +108,26 @@ begin
     Result := Screen.SystemFont.Size;
 end;
 
+function TControlHelper.GetComposited: boolean;
+  {$IFDEF WINDOWS}
+var
+  WinCtrl: TWinControl;
+  ExStyle: LONG_PTR;
+  {$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  if not (Self is TWinControl) then Exit(False);
+  WinCtrl := TWinControl(Self);
+  if not WinCtrl.HandleAllocated then Exit(False);
+  ExStyle := GetWindowLongPtr(WinCtrl.Handle, GWL_EXSTYLE);
+  Result := (ExStyle and WS_EX_COMPOSITED) <> 0;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
 procedure TControlHelper.SetComposited(AEnabled: boolean);
 {$IFDEF WINDOWS}
-const
-  WS_EX_COMPOSITED = $02000000;
 var
   WinCtrl: TWinControl;
   ExStyle: LONG_PTR;
