@@ -226,12 +226,19 @@ type
     // (preceded by an odd number of backslashes), meaning it is
     // a literal backslash, not the start of an RTF command.
     function IsEscapedBackslash(Index: integer): boolean;
+
+    // Compares strings ignoring differences in line ending format.
+    function EqualNormalized(const AValue: string): boolean;
   end;
 
   { TCaptionHelper }
 
   TCaptionHelper = type helper for TCaption
+    // Replace from string class
     function Replace(const Old, New: string): TCaption;
+
+    // Compares strings ignoring differences in line ending format.
+    function EqualNormalized(const AValue: string): boolean;
   end;
 
   { String Ex Methods }
@@ -1807,6 +1814,19 @@ begin
   Result := Odd(Count);
 end;
 
+function TStringHelperEx.EqualNormalized(const AValue: string): boolean;
+var
+  S1, S2: string;
+begin
+  S1 := StringReplace(Self, #13#10, #10, [rfReplaceAll]);
+  S1 := StringReplace(S1, #13, #10, [rfReplaceAll]);
+
+  S2 := StringReplace(AValue, #13#10, #10, [rfReplaceAll]);
+  S2 := StringReplace(S2, #13, #10, [rfReplaceAll]);
+
+  Result := S1 = S2;
+end;
+
 {%EndRegion}
 
 {%Region -fold CaptionHelper}
@@ -1814,6 +1834,11 @@ end;
 function TCaptionHelper.Replace(const Old, New: string): TCaption;
 begin
   Result := TCaption(string(Self).Replace(Old, New));
+end;
+
+function TCaptionHelper.EqualNormalized(const AValue: string): boolean;
+begin
+  Result := string(Self).EqualNormalized(AValue);
 end;
 
 {%EndRegion}
