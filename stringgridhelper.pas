@@ -440,6 +440,31 @@ var
     TotalLineWidth: integer;
     FontColor: TColor;
   begin
+    // Guard against an empty range, which happens when the text starts with a line break
+    if LineStart > LineEnd then
+    begin
+      if ABiDiRightToLeft then
+        X := ARect.Right
+      else
+        X := ARect.Left;
+      LineStartX := X;
+      if AIsLineBreakEnd and AShowLineBreaks then
+      begin
+        ACanvas.Font.Color := Colors.LineBreak.InvertColor(ACanvas.Brush.Color);
+        ACanvas.TextOut(X, Y, '\n');
+        LineEndX := X + ACanvas.TextWidth('\n');
+        ACanvas.Font.Color := SavedTextColor;
+      end
+      else
+        LineEndX := X;
+      if LineEnd = High(LineWords) then
+      begin
+        LastLineStartX := LineStartX;
+        LastLineEndX := LineEndX;
+      end;
+      Exit;
+    end;
+
     LineWords[LineEnd].word := TrimRight(LineWords[LineEnd].word);
     LineWords[LineEnd].Width := ACanvas.TextWidth(LineWords[LineEnd].word);
     LineWords[LineStart].word := TrimLeft(LineWords[LineStart].word);
