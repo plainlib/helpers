@@ -60,6 +60,9 @@ type
 
     // Reset the internal grid state if a selection drag is stuck without a pressed button
     procedure FixStuckSelection(Shift: TShiftState);
+
+    // Recalculate row heights based on the cell content
+    procedure UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; AEditorTextHeight: integer = 0; aRow: integer = -1);
   end;
 
 function GridDrawColors(AHighlight, ALineBreak, AHint: TColor; AHintBack: TColor = clNone): TGridDrawColors;
@@ -884,6 +887,94 @@ begin
     TGridAccess(Pointer(Self)).fGridState := gsNormal;
     TGridAccess(Pointer(Self)).SelectActive := False;
     LCLIntf.SetCapture(0);
+  end;
+end;
+
+procedure TStringGridHelper.UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; AEditorTextHeight: integer = 0;
+  aRow: integer = -1);
+var
+  Row: integer = 0;
+  Col: integer = 0;
+  R: TRect = (Left: 0; Top: 0; Right: 0; Bottom: 0);
+  H: integer = 0;
+  MaxH: integer = 0;
+  ColTextWidth: integer = 0;
+  SavedFont: TFont = nil;
+  StartRow: integer = 0;
+  EndRow: integer = 0;
+  Flags: cardinal = 0;
+  CellText: string = '';
+begin
+  // Ensure the grid widget is alive and has a valid canvas handle
+  Self.HandleNeeded;
+
+  SavedFont := TFont.Create;
+  try
+    SavedFont.Assign(Self.Canvas.Font);
+    Self.Canvas.Font.Assign(Self.Font);
+
+    // Determine which rows to process
+    if (aRow >= Self.FixedRows) and (aRow < Self.RowCount) then
+    begin
+      StartRow := aRow;
+      EndRow := aRow;
+    end
+    else
+    begin
+      StartRow := Self.FixedRows;
+      EndRow := Self.RowCount - 1;
+    end;
+
+    for Row := StartRow to EndRow do
+    begin
+      MaxH := Self.DefaultRowHeight;
+
+      for Col := 0 to Self.ColCount - 1 do
+      begin
+        // Calculate usable text width inside the cell
+        ColTextWidth := Self.ColWidths[Col] - 2 * Self.GridLineWidth - 4;
+        if ColTextWidth < 10 then
+          Continue;
+
+        if Self.EditorMode and (Col = Self.Col) and (Row = Self.Row) and (AEditorTextHeight - 7 > 0) then
+        begin
+          H := AEditorTextHeight - 7;
+          if not AWordWrap then
+            H := H + GetSystemMetrics(SM_CYHSCROLL);
+        end
+        else
+        begin
+          CellText := Self.Cells[Col, Row];
+
+          R := Rect(0, 0, ColTextWidth, 0);
+
+          if AWordWrap then
+            Flags := DT_WORDBREAK or DT_CALCRECT
+          else
+            Flags := DT_CALCRECT;
+
+          DrawText(Self.Canvas.Handle,
+            PChar(CellText),
+            Length(CellText),
+            R,
+            Flags);
+
+          H := R.Bottom - R.Top + 8;   // vertical padding
+        end;
+        if H > MaxH then
+          MaxH := H;
+      end;
+
+      // Clamp the row height so it never exceeds the grid visible area
+      if MaxH > AMaxRowHeight then
+        MaxH := AMaxRowHeight;
+
+      Self.RowHeights[Row] := MaxH;
+    end;
+
+  finally
+    Self.Canvas.Font.Assign(SavedFont);
+    SavedFont.Free;
   end;
 end;
 
