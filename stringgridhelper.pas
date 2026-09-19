@@ -58,6 +58,8 @@ type
     // The number of scrolled rows is proportional to the number of notches (WheelDelta / 120).
     procedure ScrollByWheel(WheelDelta: integer);
 
+    // Reset the internal grid state if a selection drag is stuck without a pressed button
+    procedure FixStuckSelection(Shift: TShiftState);
   end;
 
 function GridDrawColors(AHighlight, ALineBreak, AHint: TColor; AHintBack: TColor = clNone): TGridDrawColors;
@@ -65,6 +67,10 @@ function GridDrawColors(AHighlight, ALineBreak, AHint: TColor; AHintBack: TColor
 implementation
 
 {%Region -fold TStringGridHelper}
+
+type
+  // Helper to access protected members of TStringGrid
+  TGridAccess = class(TStringGrid);
 
 procedure TStringGridHelper.PasteFromClipboard(AConfirmMessage: string = '');
 var
@@ -868,6 +874,17 @@ begin
 
   // Apply the new top row. This updates scrollbars and repaints automatically.
   Self.TopRow := NewTopRow;
+end;
+
+procedure TStringGridHelper.FixStuckSelection(Shift: TShiftState);
+begin
+  // If the grid thinks a drag is in progress but no button is actually held, cancel it
+  if (TGridAccess(Pointer(Self)).fGridState = gsSelecting) and not (ssLeft in Shift) then
+  begin
+    TGridAccess(Pointer(Self)).fGridState := gsNormal;
+    TGridAccess(Pointer(Self)).SelectActive := False;
+    LCLIntf.SetCapture(0);
+  end;
 end;
 
 {%EndRegion}
