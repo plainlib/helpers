@@ -42,7 +42,7 @@ type
   public
     // Paste TSV text from clipboard into the grid.
     // Respects selection, ReadOnly columns, and multiline quoted cells.
-    procedure PasteFromClipboard(AConfirmMessage: string = '');
+    procedure PasteFromClipboard(AAllowBeyondSelection: boolean = False; AConfirmMessage: string = '');
 
     // Draw text in the grid with highlighting of the found substrings
     procedure DrawHighlightedText(ACanvas: TCanvas; ARect: TRect; Colors: TGridDrawColors; const AText, AFilterText: string;
@@ -75,11 +75,12 @@ type
   // Helper to access protected members of TStringGrid
   TGridAccess = class(TStringGrid);
 
-procedure TStringGridHelper.PasteFromClipboard(AConfirmMessage: string = '');
+procedure TStringGridHelper.PasteFromClipboard(AAllowBeyondSelection: boolean = False; AConfirmMessage: string = '');
 var
   TextData: string;
   Stream: TStringStream;
   StartCol, StartRow, MaxRow, MaxCol: integer;
+  CustomColIdx: integer;
 
 // ------------------------------------------------------------------
 // Embedded TSV parser – mimics the LCL's LoadFromCSVStream behaviour.
@@ -291,12 +292,29 @@ begin
   TextData := Clipboard.AsText;
   if TextData = '' then Exit;
 
-  // Ask user if pasting multiple lines from a single cell will overwrite cells below
-  if (AConfirmMessage <> '') and ((Pos(#10, TextData) > 0) or (Pos(#13, TextData) > 0)) and
-    (Self.Selection.Top = Self.Selection.Bottom) and (Self.Selection.Left = Self.Selection.Right) then
+  // If multi-line text is pasted into a single cell: either store the whole text
+  // as one value or ask for confirmation depending on AAllowBeyondSelection
+  if ((Pos(#10, TextData) > 0) or (Pos(#13, TextData) > 0)) and (Self.Selection.Top = Self.Selection.Bottom) and
+    (Self.Selection.Left = Self.Selection.Right) then
   begin
-    if MessageDlg(AConfirmMessage, mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+    if not AAllowBeyondSelection then
+    begin
+      // Store the entire clipboard content into the selected cell as one value
+      StartCol := Self.Col;
+      StartRow := Self.Row;
+      if (StartCol < Self.FixedCols) or (StartRow < Self.FixedRows) or (StartCol >= Self.ColCount) or
+        (StartRow >= Self.RowCount) then Exit;
+      CustomColIdx := StartCol - Self.FixedCols;
+      if (CustomColIdx >= 0) and (CustomColIdx < Self.Columns.Count) then
+        if Self.Columns[CustomColIdx].ReadOnly then Exit;
+      Self.Cells[StartCol, StartRow] := TextData;
       Exit;
+    end
+    else if AConfirmMessage <> '' then
+    begin
+      if MessageDlg(AConfirmMessage, mtConfirmation, [mbYes, mbNo], 0) <> mrYes then
+        Exit;
+    end;
   end;
 
   Stream := TStringStream.Create(TextData);
