@@ -35,6 +35,11 @@ const
   BrTag = '<br>';
 
 type
+  // Options that control the behavior of the combo dialog
+  TComboQueryOption = (cqoEditable, cqoAutoComplete);
+  TComboQueryOptions = set of TComboQueryOption;
+
+type
   { TStringExHelper }
 
   TStringHelperEx = type helper(TStringHelper) for string
@@ -252,6 +257,10 @@ function LongestString(const Values: TStringArray; MinLength: integer = 0): stri
 // Shows a lightweight modal input dialog with OK/Cancel; returns True and updates AValue on OK.
 function InputQueryLite(const ACaption, APrompt: string; var AValue: string): boolean;
 
+// Shows a lightweight modal dialog with a combo box and OK/Cancel; displays AItems and returns the value from AValues in AValue on OK.
+function ComboQueryLite(const ACaption, APrompt: string; AItems: TStrings; AValues: TStrings; var AValue: string;
+  AOptions: TComboQueryOptions = []; AWidth: integer = 350): boolean;
+
 // Converts a TDateTime value to ISO 8601 string (yyyy-mm-dd or yyyy-mm-ddThh:mm:ss), empty string if zero.
 function DateTimeToStringISO(Value: TDateTime; ADisplayTime: boolean = True): string;
 
@@ -381,6 +390,112 @@ begin
     begin
       AValue := InputEdit.Text;
       Result := True;
+    end;
+  finally
+    InputForm.Free;
+  end;
+end;
+
+function ComboQueryLite(const ACaption, APrompt: string; AItems: TStrings; AValues: TStrings; var AValue: string;
+  AOptions: TComboQueryOptions = []; AWidth: integer = 350): boolean;
+var
+  InputForm: TForm = nil;
+  PromptLabel: TLabel = nil;
+  InputCombo: TComboBox = nil;
+  BtnOK: TButton = nil;
+  BtnCancel: TButton = nil;
+  SelIdx: integer = -1;
+begin
+  Result := False;
+
+  // Validate that both lists are provided and have the same size
+  if (AItems = nil) or (AValues = nil) then
+    Exit;
+  if AItems.Count <> AValues.Count then
+    Exit;
+
+  // Create the form dynamically
+  InputForm := TForm.Create(nil);
+  try
+    InputForm.Caption := ACaption;
+    InputForm.Position := poScreenCenter;
+    InputForm.BorderStyle := bsDialog;
+    InputForm.Width := AWidth;
+    InputForm.Font.Size := 10; // Make font a bit more modern
+
+    // Create the prompt label
+    PromptLabel := TLabel.Create(InputForm);
+    PromptLabel.Parent := InputForm;
+    PromptLabel.Caption := APrompt;
+    PromptLabel.Left := 12;
+    PromptLabel.Top := 12;
+    PromptLabel.AutoSize := True;
+
+    // Create the combo box tightly below the label
+    InputCombo := TComboBox.Create(InputForm);
+    InputCombo.Parent := InputForm;
+    InputCombo.Left := 12;
+    InputCombo.Top := PromptLabel.Top + PromptLabel.Height + 6;
+    InputCombo.Width := InputForm.ClientWidth - 24;
+    InputCombo.DropDownCount := 20;
+
+    // Apply the editable option, otherwise the combo is select-only
+    if cqoEditable in AOptions then
+      InputCombo.Style := csDropDown
+    else
+      InputCombo.Style := csDropDownList;
+    // Apply the autocomplete option, it works only in editable mode
+    InputCombo.AutoComplete := cqoAutoComplete in AOptions;
+
+    InputCombo.Items.Assign(AItems);
+
+    // Preselect the item whose value matches AValue if possible
+    SelIdx := AValues.IndexOf(AValue);
+    if SelIdx >= 0 then
+      InputCombo.ItemIndex := SelIdx
+    else if (cqoEditable in AOptions) and (AValue <> '') then
+      InputCombo.Text := AValue
+    else if InputCombo.Items.Count > 0 then
+      InputCombo.ItemIndex := 0;
+
+    // Create the OK button tight below the combo box
+    BtnOK := TButton.Create(InputForm);
+    BtnOK.Parent := InputForm;
+    BtnOK.Caption := 'OK';
+    BtnOK.ModalResult := mrOk;
+    BtnOK.Default := True; // Triggers on Enter key
+    BtnOK.Width := 75;
+    BtnOK.Height := 25;
+    BtnOK.Top := InputCombo.Top + InputCombo.Height + 12;
+    BtnOK.Left := InputForm.ClientWidth - (BtnOK.Width * 2) - 18;
+
+    // Create the Cancel button next to OK
+    BtnCancel := TButton.Create(InputForm);
+    BtnCancel.Parent := InputForm;
+    BtnCancel.Caption := 'Cancel';
+    BtnCancel.ModalResult := mrCancel;
+    BtnCancel.Cancel := True; // Triggers on Esc key
+    BtnCancel.Width := 75;
+    BtnCancel.Height := 25;
+    BtnCancel.Top := BtnOK.Top;
+    BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - 12;
+
+    // Dynamically adjust form height to fit controls snugly
+    InputForm.ClientHeight := BtnOK.Top + BtnOK.Height + 12;
+
+    // Show the dialog and check the result
+    if InputForm.ShowModal = mrOk then
+    begin
+      if InputCombo.ItemIndex >= 0 then
+      begin
+        AValue := AValues[InputCombo.ItemIndex];
+        Result := True;
+      end
+      else if (cqoEditable in AOptions) and (Trim(InputCombo.Text) <> '') then
+      begin
+        AValue := Trim(InputCombo.Text);
+        Result := True;
+      end;
     end;
   finally
     InputForm.Free;
