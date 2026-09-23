@@ -16,6 +16,7 @@ uses
   Forms,
   Controls,
   StdCtrls,
+  CheckLst,
   SysUtils,
   StrUtils,
   Classes,
@@ -261,6 +262,10 @@ function InputQueryLite(const ACaption, APrompt: string; var AValue: string): bo
 function ComboQueryLite(const ACaption, APrompt: string; AItems: TStrings; AValues: TStrings; var AValue: string;
   AOptions: TComboQueryOptions = []; AWidth: integer = 350): boolean;
 
+// Shows a lightweight modal dialog with a check list box and OK/Cancel; displays AItems and returns the values from AValues for the checked rows in ASelectedValues on OK.
+function CheckListQueryLite(const ACaption, APrompt: string; AItems: TStrings; AValues: TStrings;
+  var ASelectedValues: TStringArray; AOptions: TComboQueryOptions = []; AWidth: integer = 400; AHeight: integer = 350): boolean;
+
 // Converts a TDateTime value to ISO 8601 string (yyyy-mm-dd or yyyy-mm-ddThh:mm:ss), empty string if zero.
 function DateTimeToStringISO(Value: TDateTime; ADisplayTime: boolean = True): string;
 
@@ -496,6 +501,143 @@ begin
         AValue := Trim(InputCombo.Text);
         Result := True;
       end;
+    end;
+  finally
+    InputForm.Free;
+  end;
+end;
+
+function CheckListQueryLite(const ACaption, APrompt: string; AItems: TStrings; AValues: TStrings;
+  var ASelectedValues: TStringArray; AOptions: TComboQueryOptions = []; AWidth: integer = 400; AHeight: integer = 350): boolean;
+var
+  InputForm: TForm = nil;
+  PromptLabel: TLabel = nil;
+  InputList: TCheckListBox = nil;
+  BtnOK: TButton = nil;
+  BtnCancel: TButton = nil;
+  I: integer = 0;
+  J: integer = 0;
+  SelCount: integer = 0;
+  Found: boolean = False;
+  MinHeight: integer = 0;
+begin
+  Result := False;
+  SetLength(ASelectedValues, 0);
+
+  // Validate that both lists are provided and have the same size
+  if (AItems = nil) or (AValues = nil) then
+    Exit;
+  if AItems.Count <> AValues.Count then
+    Exit;
+
+  // Keep the dialog usable even if a too small height was requested
+  MinHeight := 80;
+  if AHeight < MinHeight then
+    AHeight := MinHeight;
+
+  InputForm := TForm.Create(nil);
+  try
+    InputForm.Caption := ACaption;
+    InputForm.Position := poScreenCenter;
+    // Resizable border so the user can drag the edges with the mouse
+    InputForm.BorderStyle := bsSizeable;
+    InputForm.Width := AWidth;
+    InputForm.Font.Size := 10;
+    // Do not let the user shrink the form below a usable size
+    InputForm.Constraints.MinWidth := 240;
+    InputForm.Constraints.MinHeight := 180;
+
+    // Create the prompt label docked to the top of the form
+    PromptLabel := TLabel.Create(InputForm);
+    PromptLabel.Parent := InputForm;
+    PromptLabel.Caption := APrompt;
+    PromptLabel.AutoSize := True;
+    PromptLabel.Align := alTop;
+    PromptLabel.BorderSpacing.Left := 12;
+    PromptLabel.BorderSpacing.Top := 12;
+    PromptLabel.BorderSpacing.Right := 12;
+    PromptLabel.BorderSpacing.Bottom := 6;
+
+    // Create the checklist box filling the space between the label and the buttons
+    InputList := TCheckListBox.Create(InputForm);
+    InputList.Parent := InputForm;
+    InputList.Align := alClient;
+    InputList.BorderSpacing.Left := 12;
+    InputList.BorderSpacing.Right := 12;
+    // Bottom margin reserves the vertical space occupied by the buttons plus a small gap
+    InputList.BorderSpacing.Bottom := 12 + 25 + 12;
+    InputList.TabOrder := 0;
+    InputList.Items.Assign(AItems);
+
+    // Preselect items whose values are already listed in ASelectedValues
+    for I := 0 to AValues.Count - 1 do
+    begin
+      Found := False;
+      for J := 0 to High(ASelectedValues) do
+      begin
+        if AValues[I] = ASelectedValues[J] then
+        begin
+          Found := True;
+          Break;
+        end;
+      end;
+      if Found then
+        InputList.Checked[I] := True;
+    end;
+
+    // Create the OK button, anchored to the bottom-right corner
+    BtnOK := TButton.Create(InputForm);
+    BtnOK.Parent := InputForm;
+    BtnOK.Caption := 'OK';
+    BtnOK.ModalResult := mrOk;
+    BtnOK.Default := True;
+    BtnOK.Width := 75;
+    BtnOK.Height := 25;
+    BtnOK.Anchors := [akRight, akBottom];
+    BtnOK.TabOrder := 1;
+
+    // Create the Cancel button next to OK, also anchored to the bottom-right corner
+    BtnCancel := TButton.Create(InputForm);
+    BtnCancel.Parent := InputForm;
+    BtnCancel.Caption := 'Cancel';
+    BtnCancel.ModalResult := mrCancel;
+    BtnCancel.Cancel := True;
+    BtnCancel.Width := 75;
+    BtnCancel.Height := 25;
+    BtnCancel.Anchors := [akRight, akBottom];
+    BtnCancel.TabOrder := 2;
+
+    // Set the initial client height so the list starts with the requested height
+    InputForm.ClientHeight := 12 + PromptLabel.Height + 6 + AHeight + 12 + BtnOK.Height + 12;
+
+    // Position the buttons near the bottom-right corner of the initial layout
+    BtnOK.Top := InputForm.ClientHeight - BtnOK.Height - 12;
+    BtnOK.Left := InputForm.ClientWidth - (BtnOK.Width * 2) - 18;
+    BtnCancel.Top := BtnOK.Top;
+    BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - 12;
+
+    // Give the list focus so the user can start ticking items right away
+    InputForm.ActiveControl := InputList;
+
+    // Show the dialog and check the result
+    if InputForm.ShowModal = mrOk then
+    begin
+      // Count selected items first, then collect their values
+      SelCount := 0;
+      for I := 0 to InputList.Count - 1 do
+        if InputList.Checked[I] then
+          Inc(SelCount);
+      SetLength(ASelectedValues, SelCount);
+      SelCount := 0;
+      for I := 0 to InputList.Count - 1 do
+      begin
+        if InputList.Checked[I] then
+        begin
+          ASelectedValues[SelCount] := AValues[I];
+          Inc(SelCount);
+        end;
+      end;
+      Result := True;
     end;
   finally
     InputForm.Free;
