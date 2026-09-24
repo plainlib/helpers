@@ -67,6 +67,10 @@ type
     // Apply sorting to the grid and sync the internal sort indicator fields.
     procedure ApplySort(AColumn: integer; AOrder: TSortOrder);
 
+    // Fallback arrow drawn manually when the widgetset does not provide
+    // a themed sort indicator (e.g. GTK2 on Linux).
+    procedure DrawManualSortArrow(ACanvas: TCanvas; const ARect: TRect; AOrder: TSortOrder);
+
     // Draw the native sort indicator arrow in the header cell.
     // Uses ThemeServices so the arrow matches the current visual theme.
     procedure DrawSortIndicator(ACanvas: TCanvas; const ARect: TRect; ACol, ASortColumn: integer; AOrder: TSortOrder);
@@ -934,32 +938,75 @@ begin
   Invalidate;
 end;
 
-procedure TStringGridHelper.DrawSortIndicator(ACanvas: TCanvas; const ARect: TRect; ACol, ASortColumn: integer; AOrder: TSortOrder);
+procedure TStringGridHelper.DrawManualSortArrow(ACanvas: TCanvas; const ARect: TRect;
+  AOrder: TSortOrder);
+var
+  ArrowSize, X, Y: integer;
+  Pts: array[0..2] of TPoint;
+begin
+  ArrowSize := 8;
+  X := ARect.Right - ArrowSize - 6;
+  Y := (ARect.Top + ARect.Bottom) div 2;
+
+  if AOrder = soAscending then
+  begin
+    // Triangle pointing up
+    Pts[0] := Point(X, Y + ArrowSize div 2);
+    Pts[1] := Point(X + ArrowSize, Y + ArrowSize div 2);
+    Pts[2] := Point(X + ArrowSize div 2, Y - ArrowSize div 2);
+  end
+  else
+  begin
+    // Triangle pointing down
+    Pts[0] := Point(X, Y - ArrowSize div 2);
+    Pts[1] := Point(X + ArrowSize, Y - ArrowSize div 2);
+    Pts[2] := Point(X + ArrowSize div 2, Y + ArrowSize div 2);
+  end;
+
+  // Use the theme's text color so the arrow is visible in both light and dark themes
+  ACanvas.Brush.Color := clWindowText;
+  ACanvas.Pen.Color := clWindowText;
+  ACanvas.Polygon(Pts);
+end;
+
+procedure TStringGridHelper.DrawSortIndicator(ACanvas: TCanvas; const ARect: TRect;
+  ACol, ASortColumn: integer; AOrder: TSortOrder);
+{$IFDEF MSWINDOWS}
 var
   Details: TThemedElementDetails;
   ArrowSize: TSize;
   ArrowRect: TRect;
+{$ENDIF}
 begin
   if ACol <> ASortColumn then
     Exit;
 
+{$IFDEF MSWINDOWS}
   if AOrder = soAscending then
     Details := ThemeServices.GetElementDetails(thHeaderSortArrowSortedUp)
   else
     Details := ThemeServices.GetElementDetails(thHeaderSortArrowSortedDown);
 
-  // Ask the theme for the exact size of the sort arrow
   ArrowSize := ThemeServices.GetDetailSizeForPPI(Details, Screen.PixelsPerInch);
 
-  // Position it flush to the right edge with a small border, centred vertically.
-  // The border of 2 px matches the BORDER constant used inside LCL's own
-  // DrawColumnTitleImage, so the arrow lands exactly where the native one would.
+  // If the theme does not provide a usable arrow, fall back to manual drawing
+  if (ArrowSize.cx <= 0) or (ArrowSize.cy <= 0) then
+  begin
+    DrawManualSortArrow(ACanvas, ARect, AOrder);
+    Exit;
+  end;
+
   ArrowRect.Right := ARect.Right - 2;
   ArrowRect.Left := ArrowRect.Right - ArrowSize.cx;
   ArrowRect.Top := ARect.Top + (ARect.Height - ArrowSize.cy) div 2;
   ArrowRect.Bottom := ArrowRect.Top + ArrowSize.cy;
 
   ThemeServices.DrawElement(ACanvas.Handle, Details, ArrowRect);
+{$ELSE}
+  // Non-Windows widgetsets (GTK2, Qt, Cocoa) do not reliably render the
+  // themed sort arrow, so always draw a manual one there.
+  DrawManualSortArrow(ACanvas, ARect, AOrder);
+{$ENDIF}
 end;
 
 procedure TStringGridHelper.UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; AEditorTextHeight: integer = 0;
