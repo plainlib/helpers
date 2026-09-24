@@ -12,6 +12,8 @@ unit stringgridhelper;
 interface
 
 uses
+  Forms,
+  Types,
   Classes,
   Controls,
   Dialogs,
@@ -24,6 +26,7 @@ uses
   LazUTF8,
   LCLIntf,
   LCLType,
+  Themes,
   colorhelper;
 
 type
@@ -60,6 +63,13 @@ type
 
     // Reset the internal grid state if a selection drag is stuck without a pressed button
     procedure FixStuckSelection(Shift: TShiftState);
+
+    // Apply sorting to the grid and sync the internal sort indicator fields.
+    procedure ApplySort(AColumn: integer; AOrder: TSortOrder);
+
+    // Draw the native sort indicator arrow in the header cell.
+    // Uses ThemeServices so the arrow matches the current visual theme.
+    procedure DrawSortIndicator(ACanvas: TCanvas; const ARect: TRect; ACol, ASortColumn: integer; AOrder: TSortOrder);
 
     // Recalculate row heights based on the cell content
     procedure UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; AEditorTextHeight: integer = 0; aRow: integer = -1);
@@ -906,6 +916,50 @@ begin
     TGridAccess(Pointer(Self)).SelectActive := False;
     LCLIntf.SetCapture(0);
   end;
+end;
+
+procedure TStringGridHelper.ApplySort(AColumn: integer; AOrder: TSortOrder);
+begin
+  if (AColumn >= 0) and (RowCount > FixedRows) then
+  begin
+    SortColRow(True, AColumn, FixedRows, RowCount - 1);
+    TGridAccess(Pointer(Self)).SortOrder := AOrder;
+  end
+  else
+  begin
+    TGridAccess(Pointer(Self)).SortOrder := soAscending;
+  end;
+  // Hide the built-in sort arrow - the owner draws its own via DrawSortIndicator
+  HideSortArrow;
+  Invalidate;
+end;
+
+procedure TStringGridHelper.DrawSortIndicator(ACanvas: TCanvas; const ARect: TRect; ACol, ASortColumn: integer; AOrder: TSortOrder);
+var
+  Details: TThemedElementDetails;
+  ArrowSize: TSize;
+  ArrowRect: TRect;
+begin
+  if ACol <> ASortColumn then
+    Exit;
+
+  if AOrder = soAscending then
+    Details := ThemeServices.GetElementDetails(thHeaderSortArrowSortedUp)
+  else
+    Details := ThemeServices.GetElementDetails(thHeaderSortArrowSortedDown);
+
+  // Ask the theme for the exact size of the sort arrow
+  ArrowSize := ThemeServices.GetDetailSizeForPPI(Details, Screen.PixelsPerInch);
+
+  // Position it flush to the right edge with a small border, centred vertically.
+  // The border of 2 px matches the BORDER constant used inside LCL's own
+  // DrawColumnTitleImage, so the arrow lands exactly where the native one would.
+  ArrowRect.Right := ARect.Right - 2;
+  ArrowRect.Left := ArrowRect.Right - ArrowSize.cx;
+  ArrowRect.Top := ARect.Top + (ARect.Height - ArrowSize.cy) div 2;
+  ArrowRect.Bottom := ArrowRect.Top + ArrowSize.cy;
+
+  ThemeServices.DrawElement(ACanvas.Handle, Details, ArrowRect);
 end;
 
 procedure TStringGridHelper.UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; AEditorTextHeight: integer = 0;
