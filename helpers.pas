@@ -10,7 +10,7 @@ interface
 uses
   base64utils, checkupdates, clipboardhelper, colorhelper, controlshelper, 
   hotkeyhelper, localize, osutils, stringgridhelper, stringhelper, 
-  stringshelper, arrayhelpers, pascalutils;
+  stringshelper, arrayhelpers, pascalutils, ObjectDictionary;
 
 implementation
 

@@ -98,6 +98,10 @@ SOFTWARE.
         <Filename Value="pascalutils.pas"/>
         <UnitName Value="pascalutils"/>
       </Item>
+      <Item>
+        <Filename Value="objectdictionary.pas"/>
+        <UnitName Value="objectdictionary"/>
+      </Item>
     </Files>
     <i18n>
       <EnableI18N Value="True"/>
