@@ -41,33 +41,88 @@ uses
 type
   TOS = class
   public
+
+    // Sets a custom cursor from resources to the given control
     class function SetCursorTo(Control: TControl; const ResName: string; CursorIndex: integer = 1001): boolean; static;
+
+    // Applies a small icon to the form while preserving the big taskbar icon
     class procedure SetFormSmallIcon(AForm: TForm; const AIcon: TIcon);
+
+    // Registers a file type icon and association for the given extension
     class function SetFileTypeIcon(const Ext: string; IconIndex: integer): boolean; static;
+
+    // Brings the form to front without stealing focus from other apps
     class procedure BringToFrontNoFocus(AForm: TForm); static;
+
+    // Checks whether the OS is Windows 7
     class function IsWindows7: boolean; static;
+
+    // Checks whether the OS is Windows 11
     class function IsWindows11: boolean; static;
+
+    // Returns tick count with fallback for older Windows versions
     class function GetTickCountXp: DWORD; static;
+
+    // Sleeps while processing pending messages in the message queue
     class procedure SleepBusy(MS: integer); static;
+
+    // Loops a given number of times, sleeping and processing messages
     class procedure SleepLoop(ALoop: integer = 0; ASleep: integer = 0; AProcessMessages: boolean = True); static;
+
+    // Returns a random integer with the specified number of digits
     class function GetRandom(ALength: integer): int64; static;
+
+    // Fills the list with files matching any of the given masks in a directory
     class procedure FindFilesByMasks(const Directory: string; const Masks: array of string; TempFiles: TStringList);
+
+    // Checks whether a byte buffer ends with a line break character
     class function BufferEndsWithLineBreak(const Buffer: TBytes): boolean;
+
+    // Checks whether a file ends with a line break character
     class function FileEndsWithLineBreak(const FileName: string): boolean;
+
+    // Loads the entire file content into a byte array
     class function LoadFileAsBytes(const FileName: string): TBytes;
+
+    // Detects the current console code page encoding
     class function GetConsoleEncoding: string;
+
+    // Determines whether the app runs in portable mode near the exe
     class function IsPortable(const SettingsFile: string = 'form_settings.json'): boolean;
+
+    // Returns the directory where settings should be stored
     class function GetSettingsDirectory(const AppName: string; const FileName: string = '';
       const SettingsFile: string = 'form_settings.json'): string;
+
+    // Writes a timestamped message to the application log file
     class procedure Log(const AppName, Msg: string; const LogFileName: string = 'exception.log');
+
+    // Formats exception details and stack trace into a string
     class function GetExceptionStackTrace(E: Exception): string;
+
+    // Compresses a memory stream using zlib with the given level
     class function CompressMemoryStream(InputStream: TMemoryStream; ALevel: integer = Z_DEFAULT_COMPRESSION): TMemoryStream;
+
+    // Decompresses a memory stream previously compressed by CompressMemoryStream
     class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
+
+    // Forces the given window to become the foreground window
     class procedure ForceForegroundWindow(hWnd: THandle);
+
+    // Restarts the application by launching a new instance and terminating
     class procedure ForceRestartApp;
+
+    // Opens the file in the system file manager with the file selected
+    class procedure ShowFileInExplorer(const AFileName: string);
     {$IFDEF WINDOWS}
+
+    // Enables or disables the application autostart registry entry
     class procedure RegAutoStart(const AEnable: boolean; const AppName, OldAppName: string);
+
+    // Returns the current UTC timestamp in milliseconds
     class function GetTimestamp: int64; static;
+
+    // Returns a timestamp string modified by the count of i characters
     class function GetTimestampMod(const SourceText: string): string;
     {$ENDIF}
   end;
@@ -849,6 +904,82 @@ begin
   // Forcefully terminate the current process
   Halt(1);
   {$ENDIF}
+end;
+
+class procedure TOS.ShowFileInExplorer(const AFileName: string);
+var
+  Process: TProcess = nil;
+  FullPath: string = '';
+begin
+  FullPath := ExpandFileName(AFileName);
+  // Exit silently if file does not exist
+  if not FileExists(FullPath) then
+    Exit;
+
+  Process := TProcess.Create(nil);
+  try
+    {$IFDEF WINDOWS}
+    // Windows: explorer.exe with /select parameter highlights the file
+    Process.Executable := 'explorer.exe';
+    Process.Parameters.Add('/select,' + FullPath.QuotedString('"'));
+    {$ENDIF}
+    {$IFDEF DARWIN}
+    // macOS: open with -R flag reveals the file in Finder
+    Process.Executable := 'open';
+    Process.Parameters.Add('-R');
+    Process.Parameters.Add(FullPath);
+    {$ENDIF}
+    {$IFDEF UNIX}
+    {$IFNDEF DARWIN}
+    // Linux: try known file managers that support selecting a file
+    if FileExists('/usr/bin/nautilus') then
+    begin
+      Process.Executable := 'nautilus';
+      Process.Parameters.Add('--select');
+      Process.Parameters.Add(FullPath);
+    end
+    else if FileExists('/usr/bin/dolphin') then
+    begin
+      Process.Executable := 'dolphin';
+      Process.Parameters.Add('--select');
+      Process.Parameters.Add(FullPath);
+    end
+    else if FileExists('/usr/bin/thunar') then
+    begin
+      Process.Executable := 'thunar';
+      Process.Parameters.Add('--select');
+      Process.Parameters.Add(FullPath);
+    end
+    else if FileExists('/usr/bin/nemo') then
+    begin
+      Process.Executable := 'nemo';
+      Process.Parameters.Add(FullPath);
+    end
+    else if FileExists('/usr/bin/caja') then
+    begin
+      Process.Executable := 'caja';
+      Process.Parameters.Add('--select');
+      Process.Parameters.Add(FullPath);
+    end
+    else if FileExists('/usr/bin/krusader') then
+    begin
+      // krusader has no select option, open its parent folder
+      Process.Executable := 'krusader';
+      Process.Parameters.Add(ExtractFilePath(FullPath));
+    end
+    else
+    begin
+      // Fallback: xdg-open opens the folder without selecting the file
+      Process.Executable := 'xdg-open';
+      Process.Parameters.Add(ExtractFilePath(FullPath));
+    end;
+    {$ENDIF}
+    {$ENDIF}
+
+    Process.Execute;
+  finally
+    Process.Free;
+  end;
 end;
 
 {$IFDEF WINDOWS}
