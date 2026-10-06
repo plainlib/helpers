@@ -937,8 +937,7 @@ begin
   Invalidate;
 end;
 
-procedure TStringGridHelper.DrawManualSortArrow(ACanvas: TCanvas; const ARect: TRect;
-  AOrder: TSortOrder);
+procedure TStringGridHelper.DrawManualSortArrow(ACanvas: TCanvas; const ARect: TRect; AOrder: TSortOrder);
 var
   ArrowSize, X, Y: integer;
   Pts: array[0..2] of TPoint;
@@ -968,8 +967,7 @@ begin
   ACanvas.Polygon(Pts);
 end;
 
-procedure TStringGridHelper.DrawSortIndicator(ACanvas: TCanvas; const ARect: TRect;
-  ACol, ASortColumn: integer; AOrder: TSortOrder);
+procedure TStringGridHelper.DrawSortIndicator(ACanvas: TCanvas; const ARect: TRect; ACol, ASortColumn: integer; AOrder: TSortOrder);
 {$IFDEF MSWINDOWS}
 var
   Details: TThemedElementDetails;
@@ -980,7 +978,7 @@ begin
   if ACol <> ASortColumn then
     Exit;
 
-{$IFDEF MSWINDOWS}
+  {$IFDEF MSWINDOWS}
   if AOrder = soAscending then
     Details := ThemeServices.GetElementDetails(thHeaderSortArrowSortedUp)
   else
@@ -1001,11 +999,11 @@ begin
   ArrowRect.Bottom := ArrowRect.Top + ArrowSize.cy;
 
   ThemeServices.DrawElement(ACanvas.Handle, Details, ArrowRect);
-{$ELSE}
+  {$ELSE}
   // Non-Windows widgetsets (GTK2, Qt, Cocoa) do not reliably render the
   // themed sort arrow, so always draw a manual one there.
   DrawManualSortArrow(ACanvas, ARect, AOrder);
-{$ENDIF}
+  {$ENDIF}
 end;
 
 procedure TStringGridHelper.UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; AEditorTextHeight: integer = 0;
@@ -1063,6 +1061,10 @@ begin
         else
         begin
           CellText := Self.Cells[Col, Row];
+
+          {$IFDEF UNIX}
+          CellText := StringReplace(CellText, sLineBreak, sLineBreak + ' ', [rfReplaceAll]);
+          {$ENDIF}
 
           R := Rect(0, 0, ColTextWidth, 0);
 
