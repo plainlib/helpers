@@ -11,6 +11,7 @@ unit checkupdates;
 interface
 
 uses
+  Forms,
   Classes,
   Controls,
   SysUtils,
@@ -45,6 +46,7 @@ type
   public
     // Pass all required parameters through the constructor
     constructor Create(const ARepo, AAppName: string; CreateSuspended: boolean = True);
+    destructor Destroy; override;
   end;
 
 { Check Github Version }
@@ -54,10 +56,13 @@ function CheckGithubLatestVersion(out Version: string; const Repo: string; const
 
 function GetAppVersion: string;
 function IsSSLAvailable: boolean;
+procedure StartUpdateCheck(const ARepo, AAppName: string);
 
 var
   _SSLChecked: boolean = False;
   _SSLAvailable: boolean = False;
+
+  ActiveThreads: TFPList = nil;
 
 resourcestring
   newversion = 'New version available: %s. Open GitHub page to download?';
@@ -97,6 +102,18 @@ begin
   Result := _SSLAvailable;
 end;
 
+procedure StartUpdateCheck(const ARepo, AAppName: string);
+begin
+  // Skip launching when the application is already shutting down, otherwise
+  // the thread may try to Synchronize on a destroyed form
+  if Application.Terminated then
+    Exit;
+
+  // Create and forget: the unit owns every thread through the ActiveThreads
+  // list and waits for them in finalization, so the caller needs no tracking
+  TCheckUpdateThread.Create(ARepo, AAppName, False);
+end;
+
 {%EndRegion}
 
 {%Region -fold CheckUpdateThread}
@@ -106,7 +123,18 @@ begin
   inherited Create(CreateSuspended);
   FRepo := ARepo;
   FAppName := AAppName;
-  FreeOnTerminate := True;   // optional, as before
+  // Keep the original behaviour so callers do not need to change
+  FreeOnTerminate := True;
+  if not Assigned(ActiveThreads) then
+    ActiveThreads := TFPList.Create;
+  ActiveThreads.Add(Self);
+end;
+
+destructor TCheckUpdateThread.Destroy;
+begin
+  if Assigned(ActiveThreads) then
+    ActiveThreads.Remove(Self);
+  inherited;
 end;
 
 procedure TCheckUpdateThread.Execute;
@@ -114,6 +142,9 @@ begin
   // Use fields instead of global REPO
   if CheckGithubLatestVersion(FLatestVersion, FRepo, '', True) then
   begin
+    // Do not touch the main thread if the application is shutting down
+    if Terminated then
+      Exit;
     Synchronize(@UpdateAvailable);
   end;
 end;
@@ -225,7 +256,7 @@ var
 
       while Process.Running or (Process.Output.NumBytesAvailable > 0) do
       begin
-        BytesRead := Process.Output.Read(Buffer[1], SizeOf(Buffer));
+        BytesRead := Process.Output.Read(Buffer[0], Length(Buffer));
         if BytesRead > 0 then
           OutputStream.Write(Buffer[1], BytesRead);
       end;
@@ -446,6 +477,21 @@ end;
 
 initialization
 
-{$I helpers.lrs}
+  {$I helpers.lrs}
+
+finalization
+  // Wait for every running update thread before the unit unloads, otherwise
+  // a thread may still call Synchronize on a destroyed form or leak at exit
+  if Assigned(ActiveThreads) then
+  begin
+    while ActiveThreads.Count > 0 do
+    begin
+      TCheckUpdateThread(ActiveThreads[0]).Terminate;
+      TCheckUpdateThread(ActiveThreads[0]).WaitFor;
+      // Thread frees itself because FreeOnTerminate is True, and its
+      // destructor removes it from ActiveThreads, so the loop eventually ends
+    end;
+    FreeAndNil(ActiveThreads);
+  end;
 
 end.
