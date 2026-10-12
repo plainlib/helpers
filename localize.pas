@@ -62,6 +62,9 @@ type
 
     // Translates resource strings of specified units using PO text (without touching global strings).
     class function TranslateUnitsFromPoText(const AUnitNames: array of string; const PoText: string): boolean;
+
+    // Tells whether the modifier keys are typing a national character, not a shortcut
+    class function IsCharInputModifier(const Shift: TShiftState): boolean;
   end;
 
 var
@@ -301,6 +304,25 @@ begin
   finally
     PoFile.Free;
   end;
+end;
+
+class function TLocalize.IsCharInputModifier(const Shift: TShiftState): boolean;
+begin
+  // AltGr arrives either as Ctrl+Alt, as an explicit ssAltGr flag, or
+  // as the right Ctrl on layouts like Canadian Multilingual Standard.
+  // All of them type national characters and must not fire shortcuts
+  Result := False;
+  if not (ssCtrl in Shift) then Exit;
+  if (ssAlt in Shift) or (ssAltGr in Shift) then Exit(True);
+  {$IFDEF WINDOWS}
+  // Right Ctrl without left Ctrl, or the KANA modifier used by
+  // Canadian Multilingual and Spanish Input layouts
+  if ((GetKeyState(VK_RCONTROL) and $8000) <> 0) and
+    ((GetKeyState(VK_LCONTROL) and $8000) = 0) then
+    Exit(True);
+  if (GetKeyState(VK_KANA) and $8000) <> 0 then
+    Exit(True);
+  {$ENDIF}
 end;
 
 end.
