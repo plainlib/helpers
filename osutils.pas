@@ -54,6 +54,13 @@ type
     // Brings the form to front without stealing focus from other apps
     class procedure BringToFrontNoFocus(AForm: TForm); static;
 
+    // Returns True when the running Windows version is greater or equal to
+    // the given major.minor pair. Always returns False on other platforms.
+    class function IsWindowsVersionAtLeast(AMajor, AMinor: integer): boolean;
+
+    // The Windows Spell Checker API (ISpellCheckerFactory) requires Windows 8.
+    class function IsWindows8OrLater: boolean;
+
     // Checks whether the OS is Windows 7
     class function IsWindows7: boolean; static;
 
@@ -440,6 +447,21 @@ begin
   {$ELSE}
   AForm.BringToFront;
   {$ENDIF}
+end;
+
+class function TOS.IsWindowsVersionAtLeast(AMajor, AMinor: integer): boolean;
+begin
+  {$IFDEF WINDOWS}
+  Result := (Win32MajorVersion > AMajor) or
+            ((Win32MajorVersion = AMajor) and (Win32MinorVersion >= AMinor));
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+class function TOS.IsWindows8OrLater: boolean;
+begin
+  Result := IsWindowsVersionAtLeast(6, 2);
 end;
 
 class function TOS.IsWindows7: boolean;
