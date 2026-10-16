@@ -1271,9 +1271,15 @@ end;
 function TStringHelperEx.ToDateTimeISOTry(out ADateTime: TDateTime): boolean;
 var
   FS: TFormatSettings;
-  SFixed: string;
+  SFixed, STrimmed: string;
 begin
   ADateTime := 0;
+  // Require a digit at the start and a plausible date length, otherwise
+  // short text like T1 or 1T is misread as a day of the current month
+  STrimmed := SysUtils.Trim(Self);
+  if (System.Length(STrimmed) < 8) or (not (STrimmed[1] in ['0'..'9'])) then
+    Exit(False);
+
   SFixed := StringReplace(Self, 'T', SpaceChar, [rfReplaceAll]);
   SFixed := StringReplace(SFixed, 'Z', string.Empty, [rfReplaceAll]);
   SFixed := StringReplace(SFixed, '.', '-', [rfReplaceAll]);
