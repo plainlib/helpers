@@ -1279,6 +1279,10 @@ begin
   STrimmed := SysUtils.Trim(Self);
   if (System.Length(STrimmed) < 8) or (not (STrimmed[1] in ['0'..'9'])) then
     Exit(False);
+  // Reject strings with a comma, they carry task text after the date and
+  // the date parser silently stops before the trailing part
+  if Pos(',', STrimmed) > 0 then
+    Exit(False);
 
   SFixed := StringReplace(Self, 'T', SpaceChar, [rfReplaceAll]);
   SFixed := StringReplace(SFixed, 'Z', string.Empty, [rfReplaceAll]);
