@@ -29,6 +29,7 @@ uses
   LCLIntf,
   LCLType,
   LazUTF8,
+  stringhelper,
   pascalutils;
 
 type
@@ -44,6 +45,8 @@ type
     procedure LockUpdate;
     procedure UnlockUpdate;
     procedure PulseUpdate;
+    procedure LockRedraw;
+    procedure UnlockRedraw;
     procedure RedrawNow;
     procedure FitToScreen;
 
@@ -64,7 +67,12 @@ type
   { Helper methods for TCustomEdit }
   TCustomEditHelper = class helper for TCustomEdit
   public
+    // Sets the width of the caret
     procedure SetCaretWidth(const AWidth: integer = 2);
+    // Count characters removed by the Delete key at the given caret
+    function CalcDeleteCount(ASelStart: integer): integer;
+    // Delete to the right, extending over spaces and line breaks
+    procedure DeleteKey;
   end;
 
   { Helper methods for TComboBox }
@@ -208,6 +216,41 @@ begin
     finally
       LockWindowUpdate(WinCtrl.Handle);
     end;
+  end;
+  {$ENDIF}
+end;
+
+procedure TControlHelper.LockRedraw;
+{$IFDEF WINDOWS}
+var
+  WinCtrl: TWinControl;
+{$ENDIF}
+begin
+  // Freeze repainting so a short intermediate state stays invisible
+  {$IFDEF WINDOWS}
+  if not (Self is TWinControl) then Exit;
+  WinCtrl := TWinControl(Self);
+  if not WinCtrl.HandleAllocated then
+    WinCtrl.HandleNeeded;
+  if WinCtrl.HandleAllocated then
+    Windows.SendMessage(WinCtrl.Handle, WM_SETREDRAW, WPARAM(0), 0);
+  {$ENDIF}
+end;
+
+procedure TControlHelper.UnlockRedraw;
+{$IFDEF WINDOWS}
+var
+  WinCtrl: TWinControl;
+{$ENDIF}
+begin
+  // Resume repainting and force a single redraw of the final state
+  {$IFDEF WINDOWS}
+  if not (Self is TWinControl) then Exit;
+  WinCtrl := TWinControl(Self);
+  if WinCtrl.HandleAllocated then
+  begin
+    Windows.SendMessage(WinCtrl.Handle, WM_SETREDRAW, WPARAM(1), 0);
+    RedrawNow;
   end;
   {$ENDIF}
 end;
@@ -558,6 +601,68 @@ begin
   // Show caret if the control has focus
   if Self.Focused then
     ShowCaret(Self.Handle);
+end;
+
+function TCustomEditHelper.CalcDeleteCount(ASelStart: integer): integer;
+var
+  S: string;
+  Len, Pos: integer;
+begin
+  S := Self.Text;
+  Result := 0;
+  Len := Length(S);
+  Pos := ASelStart + 1; // 1-based indexing
+
+  while Pos <= Len do
+  begin
+    if S.IsUTF8Char(Pos, ' ') then
+    begin
+      // If space, extend deletion
+      Inc(Result);
+      Inc(Pos);
+    end
+    else if (S.IsUTF8Char(Pos, #13)) or (S.IsUTF8Char(Pos, #10)) then
+    begin
+      // If CR, delete it and check for following LF
+      Inc(Result);
+      Inc(Pos);
+      if (Pos <= Len) and (S.IsUTF8Char(Pos, #10)) then
+      begin
+        Inc(Result);
+        Inc(Pos);
+      end;
+      Break; // stop loop after CR (and optional LF)
+    end
+    else
+    begin
+      Result := 1;
+      Break; // any other char, stop loop
+    end;
+  end;
+end;
+
+procedure TCustomEditHelper.DeleteKey;
+var
+  DeleteCount: integer;
+begin
+  if Self.SelLength = 0 then
+  begin
+    DeleteCount := Self.CalcDeleteCount(Self.SelStart);
+    if DeleteCount > 0 then
+    begin
+      // Freeze repaint while the character is briefly selected, otherwise
+      // the selection stays visible for a moment before being removed
+      Self.LockRedraw;
+      try
+        Self.SelLength := DeleteCount;
+        Self.ClearSelection;
+      finally
+        Self.UnlockRedraw;
+      end;
+    end;
+  end
+  else
+    Self.ClearSelection;
 end;
 
 { TComboBoxHelper }
