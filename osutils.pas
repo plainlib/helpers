@@ -450,10 +450,18 @@ begin
 end;
 
 class function TOS.IsWindowsVersionAtLeast(AMajor, AMinor: integer): boolean;
+  {$IFDEF WINDOWS}
+var
+  Major: integer = 0;
+  Minor: integer = 0;
+  {$ENDIF}
 begin
   {$IFDEF WINDOWS}
-  Result := (Win32MajorVersion > AMajor) or
-            ((Win32MajorVersion = AMajor) and (Win32MinorVersion >= AMinor));
+  // Cache the version globals as signed integers, they always fit
+  Major := integer(Win32MajorVersion);
+  Minor := integer(Win32MinorVersion);
+  Result := (Major > AMajor) or
+            ((Major = AMajor) and (Minor >= AMinor));
   {$ELSE}
   Result := False;
   {$ENDIF}
