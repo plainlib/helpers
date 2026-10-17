@@ -51,10 +51,6 @@ SOFTWARE.
         <UnitName Value="base64utils"/>
       </Item>
       <Item>
-        <Filename Value="checkupdates.pas"/>
-        <UnitName Value="checkupdates"/>
-      </Item>
-      <Item>
         <Filename Value="clipboardhelper.pas"/>
         <UnitName Value="clipboardhelper"/>
       </Item>
@@ -103,11 +99,6 @@ SOFTWARE.
         <UnitName Value="objectdictionary"/>
       </Item>
     </Files>
-    <i18n>
-      <EnableI18N Value="True"/>
-      <OutDir Value="locale"/>
-      <EnableI18NForLFM Value="True"/>
-    </i18n>
     <RequiredPkgs>
       <Item>
         <PackageName Value="LCLBase"/>

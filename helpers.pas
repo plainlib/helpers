@@ -8,9 +8,9 @@ unit helpers;
 interface
 
 uses
-  base64utils, checkupdates, clipboardhelper, colorhelper, controlshelper, 
-  hotkeyhelper, localize, osutils, stringgridhelper, stringhelper, 
-  stringshelper, arrayhelpers, pascalutils, ObjectDictionary;
+  base64utils, clipboardhelper, colorhelper, controlshelper, hotkeyhelper, 
+  localize, osutils, stringgridhelper, stringhelper, stringshelper, 
+  arrayhelpers, pascalutils, ObjectDictionary;
 
 implementation
 
