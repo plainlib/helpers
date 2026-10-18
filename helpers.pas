@@ -2,15 +2,15 @@
   This source is only used to compile and install the package.
  }
 
-unit helpers;
+unit Helpers;
 
 {$warn 5023 off : no warning about unused units}
 interface
 
 uses
-  base64utils, clipboardhelper, colorhelper, controlshelper, hotkeyhelper, 
-  localize, osutils, stringgridhelper, stringhelper, stringshelper, 
-  arrayhelpers, pascalutils, ObjectDictionary;
+  Base64Utils, ClipboardHelper, ColorHelper, ControlsHelper, HotkeyHelper,
+  Localize, OSUtils, StringGridHelper, StringHelper, StringsHelper,
+  ArrayHelper, PascalUtils, ObjectDictionary;
 
 implementation
 

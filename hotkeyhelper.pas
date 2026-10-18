@@ -4,7 +4,7 @@
 //  You may obtain a copy of the License at https://opensource.org/licenses/MIT
 //-----------------------------------------------------------------------------------
 
-unit hotkeyhelper;
+unit HotKeyHelper;
 
 {$mode ObjFPC}{$H+}
 {$modeswitch advancedrecords}

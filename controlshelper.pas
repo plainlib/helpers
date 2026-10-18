@@ -4,7 +4,7 @@
 //  You may obtain a copy of the License at https://opensource.org/licenses/MIT
 //-----------------------------------------------------------------------------------
 
-unit controlshelper;
+unit ControlsHelper;
 
 {$mode ObjFPC}{$H+}
 {$codepage utf8}
@@ -29,8 +29,8 @@ uses
   LCLIntf,
   LCLType,
   LazUTF8,
-  stringhelper,
-  pascalutils;
+  StringHelper,
+  PascalUtils;
 
 type
   TListCheckAction = (caCheckAll, caUncheckAll, caInvert);

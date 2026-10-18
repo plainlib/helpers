@@ -4,7 +4,7 @@
 //  You may obtain a copy of the License at https://opensource.org/licenses/MIT
 //-----------------------------------------------------------------------------------
 
-unit base64utils;
+unit Base64Utils;
 
 {$mode objfpc}{$H+}
 

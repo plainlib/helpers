@@ -87,8 +87,8 @@ SOFTWARE.
         <UnitName Value="stringshelper"/>
       </Item>
       <Item>
-        <Filename Value="arrayhelpers.pas"/>
-        <UnitName Value="arrayhelpers"/>
+        <Filename Value="arrayhelper.pas"/>
+        <UnitName Value="arrayhelper"/>
       </Item>
       <Item>
         <Filename Value="pascalutils.pas"/>

@@ -4,7 +4,7 @@
 //  You may obtain a copy of the License at https://opensource.org/licenses/MIT
 //-----------------------------------------------------------------------------------
 
-unit clipboardhelper;
+unit ClipboardHelper;
 
 {$mode ObjFPC}{$H+}
 
@@ -70,7 +70,7 @@ type
 implementation
 
 {$IFDEF WINDOWS}
-uses osutils;
+uses OSUtils;
 
 var
   CachedExcludeFormat: UINT = 0;  // cached format id

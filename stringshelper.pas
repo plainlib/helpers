@@ -4,7 +4,7 @@
 //  You may obtain a copy of the License at https://opensource.org/licenses/MIT
 //-----------------------------------------------------------------------------------
 
-unit stringshelper;
+unit StringsHelper;
 
 {$mode ObjFPC}{$H+}
 {$codepage utf8}
