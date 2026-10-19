@@ -8,6 +8,8 @@
       <Version Value="11"/>
       <PathDelim Value="\"/>
       <SearchPaths>
+        <IncludeFiles Value="src"/>
+        <OtherUnitFiles Value="src"/>
         <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
       <Linking>
@@ -47,55 +49,55 @@ SOFTWARE.
     <Version Major="1"/>
     <Files>
       <Item>
-        <Filename Value="base64utils.pas"/>
+        <Filename Value="src\base64utils.pas"/>
         <UnitName Value="base64utils"/>
       </Item>
       <Item>
-        <Filename Value="clipboardhelper.pas"/>
+        <Filename Value="src\clipboardhelper.pas"/>
         <UnitName Value="clipboardhelper"/>
       </Item>
       <Item>
-        <Filename Value="colorhelper.pas"/>
+        <Filename Value="src\colorhelper.pas"/>
         <UnitName Value="colorhelper"/>
       </Item>
       <Item>
-        <Filename Value="controlshelper.pas"/>
+        <Filename Value="src\controlshelper.pas"/>
         <UnitName Value="controlshelper"/>
       </Item>
       <Item>
-        <Filename Value="hotkeyhelper.pas"/>
+        <Filename Value="src\hotkeyhelper.pas"/>
         <UnitName Value="hotkeyhelper"/>
       </Item>
       <Item>
-        <Filename Value="localize.pas"/>
+        <Filename Value="src\localize.pas"/>
         <UnitName Value="localize"/>
       </Item>
       <Item>
-        <Filename Value="osutils.pas"/>
+        <Filename Value="src\osutils.pas"/>
         <UnitName Value="osutils"/>
       </Item>
       <Item>
-        <Filename Value="stringgridhelper.pas"/>
+        <Filename Value="src\stringgridhelper.pas"/>
         <UnitName Value="stringgridhelper"/>
       </Item>
       <Item>
-        <Filename Value="stringhelper.pas"/>
+        <Filename Value="src\stringhelper.pas"/>
         <UnitName Value="stringhelper"/>
       </Item>
       <Item>
-        <Filename Value="stringshelper.pas"/>
+        <Filename Value="src\stringshelper.pas"/>
         <UnitName Value="stringshelper"/>
       </Item>
       <Item>
-        <Filename Value="arrayhelper.pas"/>
+        <Filename Value="src\arrayhelper.pas"/>
         <UnitName Value="arrayhelper"/>
       </Item>
       <Item>
-        <Filename Value="pascalutils.pas"/>
+        <Filename Value="src\pascalutils.pas"/>
         <UnitName Value="pascalutils"/>
       </Item>
       <Item>
-        <Filename Value="objectdictionary.pas"/>
+        <Filename Value="src\objectdictionary.pas"/>
         <UnitName Value="objectdictionary"/>
       </Item>
     </Files>
