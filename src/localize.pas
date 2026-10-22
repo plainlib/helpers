@@ -63,12 +63,18 @@ type
     // Translates resource strings of specified units using PO text (without touching global strings).
     class function TranslateUnitsFromPoText(const AUnitNames: array of string; const PoText: string): boolean;
 
+    // Translate AForm and unit resourcestrings using CustomPoFile or APrefix package resource.
+    // APrefix matches the .lrs resource base name (e.g. 'formconfig').
+    class function TranslateForm(const APrefix: string; AForm: TCustomForm; const AUnitNames: array of string): boolean;
+
     // Tells whether the modifier keys are typing a national character, not a shortcut
     class function IsCharInputModifier(const Shift: TShiftState): boolean;
   end;
 
 var
   Language: string;
+  // Custom PO file applied at runtime; empty means use package resources
+  CustomPoFile: string;
 
 implementation
 
@@ -307,6 +313,27 @@ begin
   finally
     PoFile.Free;
   end;
+end;
+
+class function TLocalize.TranslateForm(const APrefix: string; AForm: TCustomForm; const AUnitNames: array of string): boolean;
+var
+  PoText: string;
+begin
+  Result := False;
+
+  PoText := string.Empty;
+  if CustomPoFile <> string.Empty then
+    PoText := LoadCustomPoFile(CustomPoFile)
+  else
+    PoText := LoadPackagePoResource(APrefix, Language);
+
+  // Nothing to apply; skip both unit strings and form update
+  if PoText = '' then Exit;
+
+  if Length(AUnitNames) > 0 then
+    TranslateUnitsFromPoText(AUnitNames, PoText);
+
+  Result := ApplicationTranslate(APrefix, Language, AForm, PoText, False);
 end;
 
 class function TLocalize.IsCharInputModifier(const Shift: TShiftState): boolean;
