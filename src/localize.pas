@@ -264,9 +264,15 @@ class function TLocalize.LoadPackagePoResource(const AResourcePrefix, ALang: str
 var
   ResStream: TLazarusResourceStream;
   ResName: string;
+  LRes: TLResource;
 begin
   Result := '';
+  if ALang = string.Empty then Exit;
   ResName := AResourcePrefix + '.' + ALang;
+
+  // Check existence first so the debugger does not break on a caught exception
+  LRes := LazarusResources.Find(PChar(ResName), 'PO');
+  if LRes = nil then Exit;
 
   try
     ResStream := TLazarusResourceStream.Create(ResName, 'PO');
@@ -324,8 +330,13 @@ begin
   PoText := string.Empty;
   if CustomPoFile <> string.Empty then
     PoText := LoadCustomPoFile(CustomPoFile)
-  else
+  else if (APrefix <> string.Empty) and (Language <> string.Empty) then
+  begin
     PoText := LoadPackagePoResource(APrefix, Language);
+    // Fall back to default language when the language-specific pack is missing
+    if (PoText = '') and (Language <> DEFAULT_LANG) then
+      PoText := LoadPackagePoResource(APrefix, DEFAULT_LANG);
+  end;
 
   // Nothing to apply; skip both unit strings and form update
   if PoText = '' then Exit;
