@@ -155,7 +155,10 @@ begin
         PoFile.ReadPOText(PoStringStream.DataString);
       end
       else
+      begin
         PoFile.ReadPOText(PoText);
+        LangFound := True;
+      end;
 
       if ATranslateResStrings and not Assigned(AForm) then
         Result := TranslateResourceStrings(PoFile);
