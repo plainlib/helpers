@@ -280,7 +280,7 @@ function FloatToString(Value: double; FS: TFormatSettings): string;
 
 implementation
 
-{%Region -fold String Ex Methods}
+  {%Region -fold String Ex Methods}
 
 function PosExReverse(const SubStr, S: unicodestring; Offset: SizeInt = -1): SizeInt;
 var
@@ -346,23 +346,23 @@ begin
     InputForm.Caption := ACaption;
     InputForm.Position := poScreenCenter;
     InputForm.BorderStyle := bsDialog;
-    InputForm.Width := 350;
+    InputForm.Width := InputForm.Scale96ToForm(350);
     InputForm.Font.Size := 10; // Make font a bit more modern
 
     // Create the prompt label
     PromptLabel := TLabel.Create(InputForm);
     PromptLabel.Parent := InputForm;
     PromptLabel.Caption := APrompt;
-    PromptLabel.Left := 12;
-    PromptLabel.Top := 12;
+    PromptLabel.Left := InputForm.Scale96ToForm(12);
+    PromptLabel.Top := InputForm.Scale96ToForm(12);
     PromptLabel.AutoSize := True;
 
     // Create the input field tightly below the label
     InputEdit := TEdit.Create(InputForm);
     InputEdit.Parent := InputForm;
-    InputEdit.Left := 12;
-    InputEdit.Top := PromptLabel.Top + PromptLabel.Height + 6;
-    InputEdit.Width := InputForm.ClientWidth - 24;
+    InputEdit.Left := InputForm.Scale96ToForm(12);
+    InputEdit.Top := PromptLabel.Top + PromptLabel.Height + InputForm.Scale96ToForm(6);
+    InputEdit.Width := InputForm.ClientWidth - InputForm.Scale96ToForm(24);
     InputEdit.Text := AValue;
 
     // Create the OK button tight below the input field
@@ -371,10 +371,10 @@ begin
     BtnOK.Caption := 'OK';
     BtnOK.ModalResult := mrOk;
     BtnOK.Default := True; // Triggers on Enter key
-    BtnOK.Width := 75;
-    BtnOK.Height := 25;
-    BtnOK.Top := InputEdit.Top + InputEdit.Height + 12;
-    BtnOK.Left := InputForm.ClientWidth - (BtnOK.Width * 2) - 18;
+    BtnOK.Width := InputForm.Scale96ToForm(75);
+    BtnOK.Height := InputForm.Scale96ToForm(25);
+    BtnOK.Top := InputEdit.Top + InputEdit.Height + InputForm.Scale96ToForm(12);
+    BtnOK.Left := InputForm.ClientWidth - (BtnOK.Width * 2) - InputForm.Scale96ToForm(18);
 
     // Create the Cancel button next to OK
     BtnCancel := TButton.Create(InputForm);
@@ -382,13 +382,13 @@ begin
     BtnCancel.Caption := 'Cancel';
     BtnCancel.ModalResult := mrCancel;
     BtnCancel.Cancel := True; // Triggers on Esc key
-    BtnCancel.Width := 75;
-    BtnCancel.Height := 25;
+    BtnCancel.Width := InputForm.Scale96ToForm(75);
+    BtnCancel.Height := InputForm.Scale96ToForm(25);
     BtnCancel.Top := BtnOK.Top;
-    BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - 12;
+    BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - InputForm.Scale96ToForm(12);
 
     // Dynamically adjust form height to fit controls snugly
-    InputForm.ClientHeight := BtnOK.Top + BtnOK.Height + 12;
+    InputForm.ClientHeight := BtnOK.Top + BtnOK.Height + InputForm.Scale96ToForm(12);
 
     // Show the dialog and check the result
     if InputForm.ShowModal = mrOk then
@@ -425,23 +425,23 @@ begin
     InputForm.Caption := ACaption;
     InputForm.Position := poScreenCenter;
     InputForm.BorderStyle := bsDialog;
-    InputForm.Width := AWidth;
+    InputForm.Width := InputForm.Scale96ToForm(AWidth);
     InputForm.Font.Size := 10; // Make font a bit more modern
 
     // Create the prompt label
     PromptLabel := TLabel.Create(InputForm);
     PromptLabel.Parent := InputForm;
     PromptLabel.Caption := APrompt;
-    PromptLabel.Left := 12;
-    PromptLabel.Top := 12;
+    PromptLabel.Left := InputForm.Scale96ToForm(12);
+    PromptLabel.Top := InputForm.Scale96ToForm(12);
     PromptLabel.AutoSize := True;
 
     // Create the combo box tightly below the label
     InputCombo := TComboBox.Create(InputForm);
     InputCombo.Parent := InputForm;
-    InputCombo.Left := 12;
-    InputCombo.Top := PromptLabel.Top + PromptLabel.Height + 6;
-    InputCombo.Width := InputForm.ClientWidth - 24;
+    InputCombo.Left := InputForm.Scale96ToForm(12);
+    InputCombo.Top := PromptLabel.Top + PromptLabel.Height + InputForm.Scale96ToForm(6);
+    InputCombo.Width := InputForm.ClientWidth - InputForm.Scale96ToForm(24);
     InputCombo.DropDownCount := 20;
 
     // Apply the editable option, otherwise the combo is select-only
@@ -469,10 +469,10 @@ begin
     BtnOK.Caption := 'OK';
     BtnOK.ModalResult := mrOk;
     BtnOK.Default := True; // Triggers on Enter key
-    BtnOK.Width := 75;
-    BtnOK.Height := 25;
-    BtnOK.Top := InputCombo.Top + InputCombo.Height + 12;
-    BtnOK.Left := InputForm.ClientWidth - (BtnOK.Width * 2) - 18;
+    BtnOK.Width := InputForm.Scale96ToForm(75);
+    BtnOK.Height := InputForm.Scale96ToForm(25);
+    BtnOK.Top := InputCombo.Top + InputCombo.Height + InputForm.Scale96ToForm(12);
+    BtnOK.Left := InputForm.ClientWidth - (BtnOK.Width * 2) - InputForm.Scale96ToForm(18);
 
     // Create the Cancel button next to OK
     BtnCancel := TButton.Create(InputForm);
@@ -480,13 +480,13 @@ begin
     BtnCancel.Caption := 'Cancel';
     BtnCancel.ModalResult := mrCancel;
     BtnCancel.Cancel := True; // Triggers on Esc key
-    BtnCancel.Width := 75;
-    BtnCancel.Height := 25;
+    BtnCancel.Width := InputForm.Scale96ToForm(75);
+    BtnCancel.Height := InputForm.Scale96ToForm(25);
     BtnCancel.Top := BtnOK.Top;
-    BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - 12;
+    BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - InputForm.Scale96ToForm(12);
 
     // Dynamically adjust form height to fit controls snugly
-    InputForm.ClientHeight := BtnOK.Top + BtnOK.Height + 12;
+    InputForm.ClientHeight := BtnOK.Top + BtnOK.Height + InputForm.Scale96ToForm(12);
 
     // Show the dialog and check the result
     if InputForm.ShowModal = mrOk then
@@ -530,13 +530,17 @@ begin
   if AItems.Count <> AValues.Count then
     Exit;
 
-  // Keep the dialog usable even if a too small height was requested
-  MinHeight := 80;
-  if AHeight < MinHeight then
-    AHeight := MinHeight;
-
   InputForm := TForm.Create(nil);
   try
+    // Scale design pixel sizes to the current DPI of the form
+    AWidth := InputForm.Scale96ToForm(AWidth);
+    AHeight := InputForm.Scale96ToForm(AHeight);
+
+    // Keep the dialog usable even if a too small height was requested
+    MinHeight := InputForm.Scale96ToForm(80);
+    if AHeight < MinHeight then
+      AHeight := MinHeight;
+
     InputForm.Caption := ACaption;
     InputForm.Position := poScreenCenter;
     // Resizable border so the user can drag the edges with the mouse
@@ -544,8 +548,8 @@ begin
     InputForm.Width := AWidth;
     InputForm.Font.Size := 10;
     // Do not let the user shrink the form below a usable size
-    InputForm.Constraints.MinWidth := 240;
-    InputForm.Constraints.MinHeight := 180;
+    InputForm.Constraints.MinWidth := InputForm.Scale96ToForm(240);
+    InputForm.Constraints.MinHeight := InputForm.Scale96ToForm(180);
 
     // Create the prompt label docked to the top of the form
     PromptLabel := TLabel.Create(InputForm);
@@ -553,19 +557,19 @@ begin
     PromptLabel.Caption := APrompt;
     PromptLabel.AutoSize := True;
     PromptLabel.Align := alTop;
-    PromptLabel.BorderSpacing.Left := 12;
-    PromptLabel.BorderSpacing.Top := 12;
-    PromptLabel.BorderSpacing.Right := 12;
-    PromptLabel.BorderSpacing.Bottom := 6;
+    PromptLabel.BorderSpacing.Left := InputForm.Scale96ToForm(12);
+    PromptLabel.BorderSpacing.Top := InputForm.Scale96ToForm(12);
+    PromptLabel.BorderSpacing.Right := InputForm.Scale96ToForm(12);
+    PromptLabel.BorderSpacing.Bottom := InputForm.Scale96ToForm(6);
 
     // Create the checklist box filling the space between the label and the buttons
     InputList := TCheckListBox.Create(InputForm);
     InputList.Parent := InputForm;
     InputList.Align := alClient;
-    InputList.BorderSpacing.Left := 12;
-    InputList.BorderSpacing.Right := 12;
+    InputList.BorderSpacing.Left := InputForm.Scale96ToForm(12);
+    InputList.BorderSpacing.Right := InputForm.Scale96ToForm(12);
     // Bottom margin reserves the vertical space occupied by the buttons plus a small gap
-    InputList.BorderSpacing.Bottom := 12 + 25 + 12;
+    InputList.BorderSpacing.Bottom := InputForm.Scale96ToForm(12) + InputForm.Scale96ToForm(25) + InputForm.Scale96ToForm(12);
     InputList.TabOrder := 0;
     InputList.Items.Assign(AItems);
 
@@ -591,8 +595,8 @@ begin
     BtnOK.Caption := 'OK';
     BtnOK.ModalResult := mrOk;
     BtnOK.Default := True;
-    BtnOK.Width := 75;
-    BtnOK.Height := 25;
+    BtnOK.Width := InputForm.Scale96ToForm(75);
+    BtnOK.Height := InputForm.Scale96ToForm(25);
     BtnOK.Anchors := [akRight, akBottom];
     BtnOK.TabOrder := 1;
 
@@ -602,19 +606,20 @@ begin
     BtnCancel.Caption := 'Cancel';
     BtnCancel.ModalResult := mrCancel;
     BtnCancel.Cancel := True;
-    BtnCancel.Width := 75;
-    BtnCancel.Height := 25;
+    BtnCancel.Width := InputForm.Scale96ToForm(75);
+    BtnCancel.Height := InputForm.Scale96ToForm(25);
     BtnCancel.Anchors := [akRight, akBottom];
     BtnCancel.TabOrder := 2;
 
     // Set the initial client height so the list starts with the requested height
-    InputForm.ClientHeight := 12 + PromptLabel.Height + 6 + AHeight + 12 + BtnOK.Height + 12;
+    InputForm.ClientHeight := InputForm.Scale96ToForm(12) + PromptLabel.Height + InputForm.Scale96ToForm(6) +
+      AHeight + InputForm.Scale96ToForm(12) + BtnOK.Height + InputForm.Scale96ToForm(12);
 
     // Position the buttons near the bottom-right corner of the initial layout
-    BtnOK.Top := InputForm.ClientHeight - BtnOK.Height - 12;
-    BtnOK.Left := InputForm.ClientWidth - (BtnOK.Width * 2) - 18;
+    BtnOK.Top := InputForm.ClientHeight - BtnOK.Height - InputForm.Scale96ToForm(12);
+    BtnOK.Left := InputForm.ClientWidth - (BtnOK.Width * 2) - InputForm.Scale96ToForm(18);
     BtnCancel.Top := BtnOK.Top;
-    BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - 12;
+    BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - InputForm.Scale96ToForm(12);
 
     // Give the list focus so the user can start ticking items right away
     InputForm.ActiveControl := InputList;
