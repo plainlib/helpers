@@ -24,6 +24,7 @@ uses
   Clipbrd,
   LazUTF8,
   LCLIntf,
+  LMessages,
   LCLType,
   Themes,
   colorhelper;
@@ -36,6 +37,16 @@ type
     LineBreak: TColor;
     Hint: TColor;
     HintBack: TColor;
+  end;
+
+  { TGridScrollState }
+
+  // Saved viewport scroll position of a grid
+  TGridScrollState = record
+    LeftCol: integer;
+    TopRow: integer;
+    HorzPixel: integer;
+    VertPixel: integer;
   end;
 
   { TStringGridHelper }
@@ -59,6 +70,14 @@ type
     // WheelDelta is the raw delta from mouse wheel message (usually ±120 per notch).
     // The number of scrolled rows is proportional to the number of notches (WheelDelta / 120).
     procedure ScrollByWheel(WheelDelta: integer);
+
+    // Save the current viewport scroll position for a later restore.
+    // Includes the pixel-level scrollbar offsets used by goSmoothScroll
+    function SaveScrollState: TGridScrollState;
+
+    // Restore a previously saved scroll position. Pixel offsets are applied
+    // after the row/col position, so the viewport lands exactly where it was
+    procedure RestoreScrollState(const AState: TGridScrollState);
 
     // Reset the internal grid state if a selection drag is stuck without a pressed button
     procedure FixStuckSelection(Shift: TShiftState);
@@ -908,6 +927,46 @@ begin
 
   // Apply the new top row. This updates scrollbars and repaints automatically.
   Self.TopRow := NewTopRow;
+end;
+
+function TStringGridHelper.SaveScrollState: TGridScrollState;
+begin
+  Result.LeftCol := Self.LeftCol;
+  Result.TopRow := Self.TopRow;
+  Result.HorzPixel := TGridAccess(Pointer(Self)).GetScrollBarPosition(SB_HORZ);
+  Result.VertPixel := TGridAccess(Pointer(Self)).GetScrollBarPosition(SB_VERT);
+end;
+
+procedure TStringGridHelper.RestoreScrollState(const AState: TGridScrollState);
+var
+  Msg: TLMHScroll;
+begin
+  // Snap the viewport to the recorded row/col first, this also updates
+  // the scrollbar ranges before the pixel offsets are applied
+  Self.LeftCol := AState.LeftCol;
+  Self.TopRow := AState.TopRow;
+
+  // goSmoothScroll keeps a pixel offset on top of the row/col position;
+  // when the option is off the offsets are zero and this is a no-op
+  if goSmoothScroll in Self.Options then
+  begin
+    if (AState.HorzPixel > 0) and Self.HandleAllocated then
+    begin
+      Msg.Msg := LM_HSCROLL;
+      Msg.ScrollCode := SB_THUMBPOSITION;
+      Msg.Pos := AState.HorzPixel;
+      Msg.Result := 0;
+      Self.Dispatch(Msg);
+    end;
+    if (AState.VertPixel > 0) and Self.HandleAllocated then
+    begin
+      Msg.Msg := LM_VSCROLL;
+      Msg.ScrollCode := SB_THUMBPOSITION;
+      Msg.Pos := AState.VertPixel;
+      Msg.Result := 0;
+      Self.Dispatch(Msg);
+    end;
+  end;
 end;
 
 procedure TStringGridHelper.FixStuckSelection(Shift: TShiftState);
