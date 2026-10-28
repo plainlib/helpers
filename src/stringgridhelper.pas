@@ -1048,13 +1048,13 @@ begin
       for Col := 0 to Self.ColCount - 1 do
       begin
         // Calculate usable text width inside the cell
-        ColTextWidth := Self.ColWidths[Col] - 2 * Self.GridLineWidth - 4;
-        if ColTextWidth < 10 then
+        ColTextWidth := Self.ColWidths[Col] - 2 * Self.GridLineWidth - Self.Scale96ToForm(4);
+        if ColTextWidth < Self.Scale96ToForm(10) then
           Continue;
 
-        if Self.EditorMode and (Col = Self.Col) and (Row = Self.Row) and (AEditorTextHeight - 7 > 0) then
+        if Self.EditorMode and (Col = Self.Col) and (Row = Self.Row) and (AEditorTextHeight - Self.Scale96ToForm(8) > 0) then
         begin
-          H := AEditorTextHeight - 7;
+          H := AEditorTextHeight - Self.Scale96ToForm(8);
           if not AWordWrap then
             H := H + GetSystemMetrics(SM_CYHSCROLL);
         end
@@ -1079,7 +1079,7 @@ begin
             R,
             Flags);
 
-          H := R.Bottom - R.Top + 8;   // vertical padding
+          H := R.Bottom - R.Top + Self.Scale96ToForm(8);   // vertical padding
         end;
         if H > MaxH then
           MaxH := H;

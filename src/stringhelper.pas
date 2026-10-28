@@ -280,7 +280,7 @@ function FloatToString(Value: double; FS: TFormatSettings): string;
 
 implementation
 
-  {%Region -fold String Ex Methods}
+{%Region -fold String Ex Methods}
 
 function PosExReverse(const SubStr, S: unicodestring; Offset: SizeInt = -1): SizeInt;
 var
@@ -361,7 +361,7 @@ begin
     InputEdit := TEdit.Create(InputForm);
     InputEdit.Parent := InputForm;
     InputEdit.Left := InputForm.Scale96ToForm(12);
-    InputEdit.Top := PromptLabel.Top + PromptLabel.Height + InputForm.Scale96ToForm(6);
+    InputEdit.Top := PromptLabel.Top + PromptLabel.Height + InputForm.Scale96ToForm(10);
     InputEdit.Width := InputForm.ClientWidth - InputForm.Scale96ToForm(24);
     InputEdit.Text := AValue;
 
@@ -440,7 +440,7 @@ begin
     InputCombo := TComboBox.Create(InputForm);
     InputCombo.Parent := InputForm;
     InputCombo.Left := InputForm.Scale96ToForm(12);
-    InputCombo.Top := PromptLabel.Top + PromptLabel.Height + InputForm.Scale96ToForm(6);
+    InputCombo.Top := PromptLabel.Top + PromptLabel.Height + InputForm.Scale96ToForm(10);
     InputCombo.Width := InputForm.ClientWidth - InputForm.Scale96ToForm(24);
     InputCombo.DropDownCount := 20;
 
