@@ -722,11 +722,13 @@ const
   PADDING = 4;
 var
   CheckRect, IconRect: TRect;
-  CheckSize: TSize;
-  Details: TThemedElementDetails;
   TextLeft: integer;
   Canvas: Graphics.TCanvas;
+  {$IFNDEF LINUX}
+  CheckSize: TSize;
+  Details: TThemedElementDetails;
   Step, Border: integer;
+  {$ENDIF}
 begin
   Canvas := Self.Canvas;
   // Draw background according to selection state
@@ -743,6 +745,7 @@ begin
     Canvas.FillRect(ARect);
   end;
 
+  {$IFNDEF LINUX}
   // Get standard checkbox size from system metrics
   CheckSize.cx := GetSystemMetrics(SM_CXMENUCHECK);
   CheckSize.cy := GetSystemMetrics(SM_CYMENUCHECK);
@@ -849,6 +852,10 @@ begin
   end;
 
   TextLeft := CheckRect.Right + PADDING;
+  {$ELSE}
+  // GTK draws its own native checkbox, so text starts at the left edge
+  TextLeft := ARect.Left + PADDING;
+  {$ENDIF}
 
   // Draw icon
   if Assigned(Icon) then
