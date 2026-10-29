@@ -94,7 +94,8 @@ type
     procedure DrawSortIndicator(ACanvas: TCanvas; const ARect: TRect; ACol, ASortColumn: integer; AOrder: TSortOrder);
 
     // Recalculate row heights based on the cell content
-    procedure UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; AEditorTextHeight: integer = 0; aRow: integer = -1);
+    procedure UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; const AEditorText: string = '';
+      AEditorZoom: double = 1; aRow: integer = -1);
   end;
 
 function GridDrawColors(AHighlight, ALineBreak, AHint: TColor; AHintBack: TColor = clNone): TGridDrawColors;
@@ -1065,8 +1066,8 @@ begin
   {$ENDIF}
 end;
 
-procedure TStringGridHelper.UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; AEditorTextHeight: integer = 0;
-  aRow: integer = -1);
+procedure TStringGridHelper.UpdateRowHeights(AWordWrap: boolean; AMaxRowHeight: integer; const AEditorText: string = '';
+  AEditorZoom: double = 1; aRow: integer = -1);
 var
   Row: integer = 0;
   Col: integer = 0;
@@ -1079,9 +1080,15 @@ var
   EndRow: integer = 0;
   Flags: cardinal = 0;
   CellText: string = '';
+  IsEditorCell: boolean = False;
+  LogicalWidth: integer = 0;
 begin
   // Ensure the grid widget is alive and has a valid canvas handle
   Self.HandleNeeded;
+
+  // Guard against a zero or negative zoom factor
+  if AEditorZoom <= 0 then
+    AEditorZoom := 1;
 
   SavedFont := TFont.Create;
   try
@@ -1111,35 +1118,61 @@ begin
         if ColTextWidth < Self.Scale96ToForm(10) then
           Continue;
 
-        if Self.EditorMode and (Col = Self.Col) and (Row = Self.Row) and (AEditorTextHeight - Self.Scale96ToForm(8) > 0) then
-        begin
-          H := AEditorTextHeight - Self.Scale96ToForm(8);
-          if not AWordWrap then
-            H := H + GetSystemMetrics(SM_CYHSCROLL);
-        end
+        // Use the live editor text for the cell being edited, otherwise
+        // fall back to the committed cell value, so both paths measure
+        // through the same DrawText call below
+        IsEditorCell := Self.EditorMode and (Col = Self.Col) and (Row = Self.Row);
+        if IsEditorCell then
+          CellText := AEditorText
         else
-        begin
           CellText := Self.Cells[Col, Row];
 
-          {$IFDEF UNIX}
-          CellText := StringReplace(CellText, sLineBreak, sLineBreak + ' ', [rfReplaceAll]);
-          {$ENDIF}
+        {$IFDEF UNIX}
+        CellText := StringReplace(CellText, sLineBreak, sLineBreak + ' ', [rfReplaceAll]);
+        {$ENDIF}
 
+        // Editor content is measured in the editor's logical 1x space and
+        // then scaled back by AEditorZoom, so a non-default ZoomFactor keeps
+        // the row tall enough for the enlarged text
+        if IsEditorCell then
+        begin
+          if AWordWrap then
+          begin
+            LogicalWidth := Round((ColTextWidth - GetSystemMetrics(SM_CXVSCROLL)) / AEditorZoom);
+            if LogicalWidth < 10 then
+              LogicalWidth := ColTextWidth;
+            R := Rect(0, 0, LogicalWidth, 0);
+          end
+          else
+            R := Rect(0, 0, 32767, 0);
+        end
+        else
           R := Rect(0, 0, ColTextWidth, 0);
 
-          if AWordWrap then
-            Flags := DT_WORDBREAK or DT_CALCRECT
-          else
-            Flags := DT_CALCRECT;
+        if AWordWrap then
+          Flags := DT_WORDBREAK or DT_CALCRECT
+        else
+          Flags := DT_CALCRECT;
 
-          DrawText(Self.Canvas.Handle,
-            PChar(CellText),
-            Length(CellText),
-            R,
-            Flags);
+        DrawText(Self.Canvas.Handle,
+          PChar(CellText),
+          Length(CellText),
+          R,
+          Flags);
 
-          H := R.Bottom - R.Top + Self.Scale96ToForm(8);   // vertical padding
-        end;
+        H := R.Bottom - R.Top;
+
+        // Scale the logical editor height back to physical pixels
+        if IsEditorCell then
+          H := Ceil(H * AEditorZoom);
+
+        H := H + Self.Scale96ToForm(8);   // vertical padding
+
+        // Reserve room for the horizontal scrollbar the editor shows when
+        // wrapping is disabled, so the editor never clips its own content
+        if IsEditorCell and not AWordWrap then
+          H := H + GetSystemMetrics(SM_CYHSCROLL);
+
         if H > MaxH then
           MaxH := H;
       end;
