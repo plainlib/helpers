@@ -247,13 +247,27 @@ type
     function EqualNormalized(const AValue: string): boolean;
   end;
 
-  { String Ex Methods }
+  { TCheckListFilterHelper }
+type
+  { Filters the checklist by text while keeping per-item check states. }
+  TCheckListFilterHelper = class
+  private
+    FFilterEdit: TEdit;
+    FInputList: TCheckListBox;
+    FSourceItems: TStrings;
+    FSourceValues: TStrings;
+    FCheckStates: array of boolean;
+    FVisibleToSource: array of integer;
+    procedure FilterChange(Sender: TObject);
+    procedure RebuildFilteredList;
+  public
+    constructor Create(AFilterEdit: TEdit; AInputList: TCheckListBox; ASourceItems, ASourceValues: TStrings;
+      const AInitialSelected: TStringArray);
+    destructor Destroy; override;
+    function CollectSelectedValues: TStringArray;
+  end;
 
-// Searches backwards for SubStr in S starting at Offset; returns 1-based position or 0 if not found.
-function PosExReverse(const SubStr, S: unicodestring; Offset: SizeInt = -1): SizeInt;
-
-// Returns the longest string from an array of strings.
-function LongestString(const Values: TStringArray; MinLength: integer = 0): string;
+  { Dialogs Mathods }
 
 // Shows a lightweight modal input dialog with OK/Cancel; returns True and updates AValue on OK.
 function InputQueryLite(const ACaption, APrompt: string; var AValue: string): boolean;
@@ -265,6 +279,14 @@ function ComboQueryLite(const ACaption, APrompt: string; AItems: TStrings; AValu
 // Shows a lightweight modal dialog with a check list box and OK/Cancel; displays AItems and returns the values from AValues for the checked rows in ASelectedValues on OK.
 function CheckListQueryLite(const ACaption, APrompt: string; AItems: TStrings; AValues: TStrings;
   var ASelectedValues: TStringArray; AOptions: TComboQueryOptions = []; AWidth: integer = 400; AHeight: integer = 350): boolean;
+
+{ String Ex Methods }
+
+// Searches backwards for SubStr in S starting at Offset; returns 1-based position or 0 if not found.
+function PosExReverse(const SubStr, S: unicodestring; Offset: SizeInt = -1): SizeInt;
+
+// Returns the longest string from an array of strings.
+function LongestString(const Values: TStringArray; MinLength: integer = 0): string;
 
 // Converts a TDateTime value to ISO 8601 string (yyyy-mm-dd or yyyy-mm-ddThh:mm:ss), empty string if zero.
 function DateTimeToStringISO(Value: TDateTime; ADisplayTime: boolean = True): string;
@@ -280,56 +302,7 @@ function FloatToString(Value: double; FS: TFormatSettings): string;
 
 implementation
 
-{%Region -fold String Ex Methods}
-
-function PosExReverse(const SubStr, S: unicodestring; Offset: SizeInt = -1): SizeInt;
-var
-  i, MaxLen, SubLen: SizeInt;
-  // SubFirst: widechar;
-  pc: pwidechar;
-begin
-  Result := 0; // Initialize result to 0 (not found)
-  SubLen := Length(SubStr); // Get length of the substring
-  if Offset < 0 then Offset := Length(S);
-
-  // Check if the substring is not empty and Offset is valid
-  if (SubLen > 0) and (Offset > 0) and (Offset <= Length(S)) then
-  begin
-    MaxLen := Length(S) - SubLen + 1; // Adjust max starting index to include end of the string
-    // SubFirst := SubStr[1]; // Get the first character of the substring
-
-    // Search backwards, starting from Offset
-    for i := Offset downto 1 do
-    begin
-      // Ensure there is enough space left for the substring
-      if (i <= MaxLen) then
-      begin
-        pc := @S[i]; // Pointer to the current position
-
-        // Check for a match with the substring
-        if (CompareWord(SubStr[1], pc^, SubLen) = 0) then
-        begin
-          Result := i; // Return the found position
-          Exit; // Exit the function
-        end;
-      end;
-    end;
-  end;
-end;
-
-function LongestString(const Values: TStringArray; MinLength: integer = 0): string;
-var
-  I: integer;
-begin
-  Result := string.Empty;
-  for I := Low(Values) to High(Values) do
-    if Length(Values[I]) > Length(Result) then
-      Result := Values[I];
-
-  // If the longest string is shorter than the required minimum, return empty
-  if Length(Result) < MinLength then
-    Result := string.Empty;
-end;
+{%Region -fold Dialogs Mathods}
 
 function InputQueryLite(const ACaption, APrompt: string; var AValue: string): boolean;
 var
@@ -512,13 +485,11 @@ function CheckListQueryLite(const ACaption, APrompt: string; AItems: TStrings; A
 var
   InputForm: TForm = nil;
   PromptLabel: TLabel = nil;
+  FilterEdit: TEdit = nil;
   InputList: TCheckListBox = nil;
+  FilterHelper: TCheckListFilterHelper = nil;
   BtnOK: TButton = nil;
   BtnCancel: TButton = nil;
-  I: integer = 0;
-  J: integer = 0;
-  SelCount: integer = 0;
-  Found: boolean = False;
   MinHeight: integer = 0;
 begin
   Result := False;
@@ -562,6 +533,17 @@ begin
     PromptLabel.BorderSpacing.Right := InputForm.Scale96ToForm(12);
     PromptLabel.BorderSpacing.Bottom := InputForm.Scale96ToForm(6);
 
+    // Create the filter edit docked just below the prompt label
+    FilterEdit := TEdit.Create(InputForm);
+    FilterEdit.Parent := InputForm;
+    FilterEdit.Align := alTop;
+    FilterEdit.TextHint := 'Filter...';
+    FilterEdit.BorderSpacing.Top := InputForm.Scale96ToForm(6);
+    FilterEdit.BorderSpacing.Left := InputForm.Scale96ToForm(12);
+    FilterEdit.BorderSpacing.Right := InputForm.Scale96ToForm(12);
+    FilterEdit.BorderSpacing.Bottom := InputForm.Scale96ToForm(6);
+    FilterEdit.TabOrder := 0;
+
     // Create the checklist box filling the space between the label and the buttons
     InputList := TCheckListBox.Create(InputForm);
     InputList.Parent := InputForm;
@@ -570,24 +552,10 @@ begin
     InputList.BorderSpacing.Right := InputForm.Scale96ToForm(12);
     // Bottom margin reserves the vertical space occupied by the buttons plus a small gap
     InputList.BorderSpacing.Bottom := InputForm.Scale96ToForm(12) + InputForm.Scale96ToForm(25) + InputForm.Scale96ToForm(12);
-    InputList.TabOrder := 0;
-    InputList.Items.Assign(AItems);
+    InputList.TabOrder := 1;
 
-    // Preselect items whose values are already listed in ASelectedValues
-    for I := 0 to AValues.Count - 1 do
-    begin
-      Found := False;
-      for J := 0 to High(ASelectedValues) do
-      begin
-        if AValues[I] = ASelectedValues[J] then
-        begin
-          Found := True;
-          Break;
-        end;
-      end;
-      if Found then
-        InputList.Checked[I] := True;
-    end;
+    // Attach the filter helper that keeps check states while filtering
+    FilterHelper := TCheckListFilterHelper.Create(FilterEdit, InputList, AItems, AValues, ASelectedValues);
 
     // Create the OK button, anchored to the bottom-right corner
     BtnOK := TButton.Create(InputForm);
@@ -598,7 +566,7 @@ begin
     BtnOK.Width := InputForm.Scale96ToForm(75);
     BtnOK.Height := InputForm.Scale96ToForm(25);
     BtnOK.Anchors := [akRight, akBottom];
-    BtnOK.TabOrder := 1;
+    BtnOK.TabOrder := 2;
 
     // Create the Cancel button next to OK, also anchored to the bottom-right corner
     BtnCancel := TButton.Create(InputForm);
@@ -609,11 +577,12 @@ begin
     BtnCancel.Width := InputForm.Scale96ToForm(75);
     BtnCancel.Height := InputForm.Scale96ToForm(25);
     BtnCancel.Anchors := [akRight, akBottom];
-    BtnCancel.TabOrder := 2;
+    BtnCancel.TabOrder := 3;
 
     // Set the initial client height so the list starts with the requested height
     InputForm.ClientHeight := InputForm.Scale96ToForm(12) + PromptLabel.Height + InputForm.Scale96ToForm(6) +
-      AHeight + InputForm.Scale96ToForm(12) + BtnOK.Height + InputForm.Scale96ToForm(12);
+      FilterEdit.Height + InputForm.Scale96ToForm(6) + AHeight + InputForm.Scale96ToForm(12) + BtnOK.Height +
+      InputForm.Scale96ToForm(12);
 
     // Position the buttons near the bottom-right corner of the initial layout
     BtnOK.Top := InputForm.ClientHeight - BtnOK.Height - InputForm.Scale96ToForm(12);
@@ -621,32 +590,72 @@ begin
     BtnCancel.Top := BtnOK.Top;
     BtnCancel.Left := InputForm.ClientWidth - BtnCancel.Width - InputForm.Scale96ToForm(12);
 
-    // Give the list focus so the user can start ticking items right away
-    InputForm.ActiveControl := InputList;
+    // Give the filter edit focus so the user can start typing right away
+    InputForm.ActiveControl := FilterEdit;
 
     // Show the dialog and check the result
     if InputForm.ShowModal = mrOk then
     begin
-      // Count selected items first, then collect their values
-      SelCount := 0;
-      for I := 0 to InputList.Count - 1 do
-        if InputList.Checked[I] then
-          Inc(SelCount);
-      SetLength(ASelectedValues, SelCount);
-      SelCount := 0;
-      for I := 0 to InputList.Count - 1 do
-      begin
-        if InputList.Checked[I] then
-        begin
-          ASelectedValues[SelCount] := AValues[I];
-          Inc(SelCount);
-        end;
-      end;
+      ASelectedValues := FilterHelper.CollectSelectedValues;
       Result := True;
     end;
   finally
+    FilterHelper.Free;
     InputForm.Free;
   end;
+end;
+
+{%EndRegion}
+
+{%Region -fold String Ex Methods}
+
+function PosExReverse(const SubStr, S: unicodestring; Offset: SizeInt = -1): SizeInt;
+var
+  i, MaxLen, SubLen: SizeInt;
+  // SubFirst: widechar;
+  pc: pwidechar;
+begin
+  Result := 0; // Initialize result to 0 (not found)
+  SubLen := Length(SubStr); // Get length of the substring
+  if Offset < 0 then Offset := Length(S);
+
+  // Check if the substring is not empty and Offset is valid
+  if (SubLen > 0) and (Offset > 0) and (Offset <= Length(S)) then
+  begin
+    MaxLen := Length(S) - SubLen + 1; // Adjust max starting index to include end of the string
+    // SubFirst := SubStr[1]; // Get the first character of the substring
+
+    // Search backwards, starting from Offset
+    for i := Offset downto 1 do
+    begin
+      // Ensure there is enough space left for the substring
+      if (i <= MaxLen) then
+      begin
+        pc := @S[i]; // Pointer to the current position
+
+        // Check for a match with the substring
+        if (CompareWord(SubStr[1], pc^, SubLen) = 0) then
+        begin
+          Result := i; // Return the found position
+          Exit; // Exit the function
+        end;
+      end;
+    end;
+  end;
+end;
+
+function LongestString(const Values: TStringArray; MinLength: integer = 0): string;
+var
+  I: integer;
+begin
+  Result := string.Empty;
+  for I := Low(Values) to High(Values) do
+    if Length(Values[I]) > Length(Result) then
+      Result := Values[I];
+
+  // If the longest string is shorter than the required minimum, return empty
+  if Length(Result) < MinLength then
+    Result := string.Empty;
 end;
 
 function DateTimeToStringISO(Value: TDateTime; ADisplayTime: boolean = True): string;
@@ -2111,6 +2120,110 @@ end;
 function TCaptionHelper.EqualNormalized(const AValue: string): boolean;
 begin
   Result := string(Self).EqualNormalized(AValue);
+end;
+
+{%EndRegion}
+
+{%Region -fold TCheckListFilterHelper}
+
+constructor TCheckListFilterHelper.Create(AFilterEdit: TEdit; AInputList: TCheckListBox; ASourceItems, ASourceValues: TStrings;
+  const AInitialSelected: TStringArray);
+var
+  I: integer = 0;
+  J: integer = 0;
+  Found: boolean = False;
+begin
+  inherited Create;
+  FFilterEdit := AFilterEdit;
+  FInputList := AInputList;
+  FSourceItems := TStringList.Create;
+  FSourceItems.Assign(ASourceItems);
+  FSourceValues := TStringList.Create;
+  FSourceValues.Assign(ASourceValues);
+  // Initialize the check state for every source item
+  SetLength(FCheckStates, FSourceItems.Count);
+  for I := 0 to FSourceItems.Count - 1 do
+  begin
+    Found := False;
+    for J := 0 to High(AInitialSelected) do
+      if FSourceValues[I] = AInitialSelected[J] then
+      begin
+        Found := True;
+        Break;
+      end;
+    FCheckStates[I] := Found;
+  end;
+  RebuildFilteredList;
+  FFilterEdit.OnChange := @FilterChange;
+end;
+
+destructor TCheckListFilterHelper.Destroy;
+begin
+  FFilterEdit.OnChange := nil;
+  FSourceItems.Free;
+  FSourceValues.Free;
+  inherited Destroy;
+end;
+
+procedure TCheckListFilterHelper.FilterChange(Sender: TObject);
+var
+  I: integer = 0;
+begin
+  // Save current visible check states before rebuilding the list
+  for I := 0 to FInputList.Count - 1 do
+    FCheckStates[FVisibleToSource[I]] := FInputList.Checked[I];
+  RebuildFilteredList;
+end;
+
+procedure TCheckListFilterHelper.RebuildFilteredList;
+var
+  SearchText: string = '';
+  I: integer = 0;
+  VisibleCount: integer = 0;
+begin
+  SearchText := LowerCase(Trim(FFilterEdit.Text));
+  FInputList.Items.BeginUpdate;
+  try
+    FInputList.Items.Clear;
+    SetLength(FVisibleToSource, 0);
+    VisibleCount := 0;
+    for I := 0 to FSourceItems.Count - 1 do
+    begin
+      if (SearchText = '') or (Pos(SearchText, LowerCase(FSourceItems[I])) > 0) then
+      begin
+        SetLength(FVisibleToSource, VisibleCount + 1);
+        FInputList.Items.Add(FSourceItems[I]);
+        FInputList.Checked[VisibleCount] := FCheckStates[I];
+        FVisibleToSource[VisibleCount] := I;
+        Inc(VisibleCount);
+      end;
+    end;
+  finally
+    FInputList.Items.EndUpdate;
+  end;
+end;
+
+function TCheckListFilterHelper.CollectSelectedValues: TStringArray;
+var
+  I: integer = 0;
+  SelCount: integer = 0;
+begin
+  Result := [];
+  // Sync pending UI check states before collecting
+  for I := 0 to FInputList.Count - 1 do
+    FCheckStates[FVisibleToSource[I]] := FInputList.Checked[I];
+  SelCount := 0;
+  for I := 0 to High(FCheckStates) do
+    if FCheckStates[I] then
+      Inc(SelCount);
+  SetLength(Result, SelCount);
+  SelCount := 0;
+  for I := 0 to High(FCheckStates) do
+    if FCheckStates[I] then
+    begin
+      Result[SelCount] := FSourceValues[I];
+      Inc(SelCount);
+    end;
 end;
 
 {%EndRegion}
