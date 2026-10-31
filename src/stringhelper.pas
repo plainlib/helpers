@@ -270,7 +270,8 @@ type
   { Dialogs Mathods }
 
 // Shows a lightweight modal input dialog with OK/Cancel; returns True and updates AValue on OK.
-function InputQueryLite(const ACaption, APrompt: string; var AValue: string): boolean;
+// When ANumeric is True, only digits can be entered.
+function InputQueryLite(const ACaption, APrompt: string; var AValue: string; ANumeric: boolean = False): boolean;
 
 // Shows a lightweight modal dialog with a combo box and OK/Cancel; displays AItems and returns the value from AValues in AValue on OK.
 function ComboQueryLite(const ACaption, APrompt: string; AItems: TStrings; AValues: TStrings; var AValue: string;
@@ -304,7 +305,7 @@ implementation
 
 {%Region -fold Dialogs Mathods}
 
-function InputQueryLite(const ACaption, APrompt: string; var AValue: string): boolean;
+function InputQueryLite(const ACaption, APrompt: string; var AValue: string; ANumeric: boolean = False): boolean;
 var
   InputForm: TForm;
   PromptLabel: TLabel;
@@ -337,6 +338,7 @@ begin
     InputEdit.Top := PromptLabel.Top + PromptLabel.Height + InputForm.Scale96ToForm(10);
     InputEdit.Width := InputForm.ClientWidth - InputForm.Scale96ToForm(24);
     InputEdit.Text := AValue;
+    InputEdit.NumbersOnly := ANumeric;
 
     // Create the OK button tight below the input field
     BtnOK := TButton.Create(InputForm);
