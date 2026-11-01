@@ -23,6 +23,7 @@ uses
   LCLType,
   LazUTF8,
   PasZLib,
+  Zipper,
   Process,
   Dialogs,
   {$IFDEF WINDOWS}
@@ -113,6 +114,23 @@ type
     // Decompresses a memory stream previously compressed by CompressMemoryStream
     class function DecompressMemoryStream(InputStream: TMemoryStream): TMemoryStream;
 
+    // Packs the entire input stream into a zip archive written to AArchiveFileName.
+    // The archive contains a single entry named AEntryName.
+    class function ZipStreamToFile(const AInputStream: TStream; const AArchiveFileName, AEntryName: string): boolean;
+
+    // Extracts a single named entry from a zip archive into a new memory stream.
+    // Returns False if the archive cannot be read or the entry is missing.
+    class function UnZipFileToStream(const AArchiveFileName, AEntryName: string; out AOutputStream: TMemoryStream): boolean;
+
+    // Extracts every entry whose extension matches AExtensionFilter into AList.
+    // Each item name is the entry name, and AList.Objects[i] holds a
+    // TMemoryStream with the entry content. The caller owns the streams.
+    class function UnZipFileToList(const AArchiveFileName, AExtensionFilter: string; AList: TStrings): boolean;
+
+    // Packs every stream from AList into a single zip archive. AList items
+    // are used as entry names and AList.Objects[i] must be a TStream.
+    class function ZipListToFile(AList: TStrings; const AArchiveFileName: string): boolean;
+
     // Forces the given window to become the foreground window
     class procedure ForceForegroundWindow(hWnd: THandle);
 
@@ -138,6 +156,98 @@ implementation
 
 const
   MAX_ALLOWED_UNCOMPRESSED = 2048 * 1024 * 1024;
+
+  {%Region -fold TZipExtractHelper}
+
+type
+  // Extracts a single named entry from a zip archive into a memory stream.
+  // Exists only because TUnZipper's event handlers are "of object" and
+  // therefore cannot be plain nested procedures inside a class method
+  TZipExtractHelper = class
+  private
+    FEntryName: string;
+    FCaptured: TMemoryStream;
+  public
+    constructor Create(const AEntryName: string);
+    destructor Destroy; override;
+    procedure HandleCreateStream(Sender: TObject; var AStream: TStream; AItem: TFullZipFileEntry);
+    procedure HandleDoneStream(Sender: TObject; var AStream: TStream; AItem: TFullZipFileEntry);
+    property Captured: TMemoryStream read FCaptured;
+  end;
+
+constructor TZipExtractHelper.Create(const AEntryName: string);
+begin
+  inherited Create;
+  FEntryName := AEntryName;
+  FCaptured := nil;
+end;
+
+destructor TZipExtractHelper.Destroy;
+begin
+  // Captured ownership was transferred to the caller, nothing to free here
+  inherited Destroy;
+end;
+
+procedure TZipExtractHelper.HandleCreateStream(Sender: TObject; var AStream: TStream; AItem: TFullZipFileEntry);
+begin
+  // The unzipper expects the handler to provide the destination stream
+  AStream := TMemoryStream.Create;
+end;
+
+procedure TZipExtractHelper.HandleDoneStream(Sender: TObject; var AStream: TStream; AItem: TFullZipFileEntry);
+begin
+  // Only keep the requested entry; the caller owns the stream afterwards
+  if SameText(AItem.ArchiveFileName, FEntryName) then
+  begin
+    AStream.Position := 0;
+    FCaptured := TMemoryStream(AStream);
+    AStream := nil; // prevent the unzipper from freeing our result
+  end;
+  // For other entries we leave AStream intact so the unzipper frees it
+end;
+
+{%EndRegion}
+
+{%Region -fold TZipExtractListHelper}
+
+type
+  // Collects every matching entry from a zip archive into a caller-supplied
+  // TStrings list; each item carries the extracted stream in Objects
+  TZipExtractListHelper = class
+  private
+    FExtension: string;
+    FList: TStrings;
+  public
+    constructor Create(const AExtension: string; AList: TStrings);
+    procedure HandleCreateStream(Sender: TObject; var AStream: TStream; AItem: TFullZipFileEntry);
+    procedure HandleDoneStream(Sender: TObject; var AStream: TStream; AItem: TFullZipFileEntry);
+  end;
+
+constructor TZipExtractListHelper.Create(const AExtension: string; AList: TStrings);
+begin
+  inherited Create;
+  FExtension := LowerCase(AExtension);
+  FList := AList;
+end;
+
+procedure TZipExtractListHelper.HandleCreateStream(Sender: TObject; var AStream: TStream; AItem: TFullZipFileEntry);
+begin
+  AStream := TMemoryStream.Create;
+end;
+
+procedure TZipExtractListHelper.HandleDoneStream(Sender: TObject; var AStream: TStream; AItem: TFullZipFileEntry);
+begin
+  // Keep only entries with the requested extension; others are released
+  // by the unzipper since AStream is left untouched
+  if (FExtension = '') or SameText(ExtractFileExt(AItem.ArchiveFileName), FExtension) then
+  begin
+    AStream.Position := 0;
+    FList.AddObject(ExtractFileName(AItem.ArchiveFileName), AStream);
+    AStream := nil; // ownership transferred to the caller
+  end;
+end;
+
+{%EndRegion}
 
 class function TOS.SetCursorTo(Control: TControl; const ResName: string; CursorIndex: integer = 1001): boolean;
 var
@@ -860,6 +970,142 @@ begin
   except
     Result.Free;
     raise;
+  end;
+end;
+
+class function TOS.ZipStreamToFile(const AInputStream: TStream; const AArchiveFileName, AEntryName: string): boolean;
+var
+  Zipper: TZipper;
+begin
+  Result := False;
+  if (AInputStream = nil) or (AArchiveFileName = '') or (AEntryName = '') then
+    Exit;
+  AInputStream.Position := 0;
+  Zipper := TZipper.Create;
+  try
+    try
+      Zipper.FileName := AArchiveFileName;
+      Zipper.Entries.AddFileEntry(AInputStream, AEntryName);
+      Zipper.ZipAllFiles;
+      Result := True;
+    except
+      // The caller decides how to react to a write failure
+      Result := False;
+    end;
+  finally
+    Zipper.Free;
+  end;
+end;
+
+class function TOS.UnZipFileToStream(const AArchiveFileName, AEntryName: string; out AOutputStream: TMemoryStream): boolean;
+var
+  UnZipper: TUnZipper;
+  Helper: TZipExtractHelper;
+  FileList: TStringList;
+begin
+  Result := False;
+  AOutputStream := nil;
+  if not FileExists(AArchiveFileName) then
+    Exit;
+
+  Helper := TZipExtractHelper.Create(AEntryName);
+  try
+    FileList := TStringList.Create;
+    try
+      FileList.Add(AEntryName);
+      UnZipper := TUnZipper.Create;
+      try
+        try
+          UnZipper.FileName := AArchiveFileName;
+          UnZipper.OnCreateStream := @Helper.HandleCreateStream;
+          UnZipper.OnDoneStream := @Helper.HandleDoneStream;
+          UnZipper.UnZipFiles(FileList);
+        except
+          // A corrupt or unreadable archive leaves Result = False
+        end;
+      finally
+        UnZipper.Free;
+      end;
+    finally
+      FileList.Free;
+    end;
+
+    if Helper.Captured <> nil then
+    begin
+      AOutputStream := Helper.Captured;
+      Result := True;
+    end;
+  finally
+    Helper.Free;
+  end;
+end;
+
+class function TOS.UnZipFileToList(const AArchiveFileName, AExtensionFilter: string; AList: TStrings): boolean;
+var
+  UnZipper: TUnZipper;
+  Helper: TZipExtractListHelper;
+  I: integer;
+begin
+  Result := False;
+  if (AList = nil) or not FileExists(AArchiveFileName) then
+    Exit;
+
+  AList.Clear;
+  Helper := TZipExtractListHelper.Create(AExtensionFilter, AList);
+  try
+    UnZipper := TUnZipper.Create;
+    try
+      try
+        UnZipper.FileName := AArchiveFileName;
+        UnZipper.OnCreateStream := @Helper.HandleCreateStream;
+        UnZipper.OnDoneStream := @Helper.HandleDoneStream;
+        UnZipper.UnZipAllFiles;
+        Result := True;
+      except
+        // Release any streams already collected before the failure
+        for I := 0 to AList.Count - 1 do
+          TMemoryStream(AList.Objects[I]).Free;
+        AList.Clear;
+        Result := False;
+      end;
+    finally
+      UnZipper.Free;
+    end;
+  finally
+    Helper.Free;
+  end;
+end;
+
+class function TOS.ZipListToFile(AList: TStrings; const AArchiveFileName: string): boolean;
+var
+  Zipper: TZipper;
+  I: integer;
+  Stream: TMemoryStream;
+begin
+  Result := False;
+  if (AList = nil) or (AArchiveFileName = '') or (AList.Count = 0) then
+    Exit;
+
+  Zipper := TZipper.Create;
+  try
+    try
+      Zipper.FileName := AArchiveFileName;
+      for I := 0 to AList.Count - 1 do
+      begin
+        Stream := TMemoryStream(AList.Objects[I]);
+        if Assigned(Stream) then
+        begin
+          Stream.Position := 0;
+          Zipper.Entries.AddFileEntry(Stream, AList[I]);
+        end;
+      end;
+      Zipper.ZipAllFiles;
+      Result := True;
+    except
+      Result := False;
+    end;
+  finally
+    Zipper.Free;
   end;
 end;
 
