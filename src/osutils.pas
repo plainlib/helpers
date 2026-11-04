@@ -140,6 +140,9 @@ type
     // Opens the file in the system file manager with the file selected
     class procedure ShowFileInExplorer(const AFileName: string);
 
+    // Opens the file with the default program associated with its type
+    class function OpenFile(const AFileName: string): boolean;
+
     // Returns the current UTC timestamp in milliseconds
     class function GetTimestamp: int64; static;
 
@@ -1256,6 +1259,24 @@ begin
   finally
     Process.Free;
   end;
+end;
+
+class function TOS.OpenFile(const AFileName: string): boolean;
+var
+  FullPath: string = '';
+begin
+  Result := False;
+  if AFileName = '' then
+    Exit;
+
+  FullPath := ExpandFileName(AFileName);
+
+  // Nothing to open when the target is missing
+  if not FileExists(FullPath) and not DirectoryExists(FullPath) then
+    Exit;
+
+  // OpenDocument uses ShellExecute on Windows, open on macOS and xdg-open on Linux
+  Result := OpenDocument(FullPath);
 end;
 
 class function TOS.GetTimestamp: int64;
