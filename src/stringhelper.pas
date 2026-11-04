@@ -234,7 +234,7 @@ type
     function IsEscapedBackslash(Index: integer): boolean;
 
     // Compares strings ignoring differences in line ending format.
-    function EqualNormalized(const AValue: string): boolean;
+    function EqualNormalized(const AValue: string; ACaseSensitive: boolean = True): boolean;
   end;
 
   { TCaptionHelper }
@@ -2097,7 +2097,7 @@ begin
   Result := Odd(Count);
 end;
 
-function TStringHelperEx.EqualNormalized(const AValue: string): boolean;
+function TStringHelperEx.EqualNormalized(const AValue: string; ACaseSensitive: boolean = True): boolean;
 var
   S1, S2: string;
 begin
@@ -2107,7 +2107,10 @@ begin
   S2 := StringReplace(AValue, #13#10, #10, [rfReplaceAll]);
   S2 := StringReplace(S2, #13, #10, [rfReplaceAll]);
 
-  Result := S1 = S2;
+  if ACaseSensitive then
+    Result := S1 = S2
+  else
+    Result := SameText(S1, S2);
 end;
 
 {%EndRegion}
