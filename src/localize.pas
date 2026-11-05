@@ -16,6 +16,7 @@ uses
   Forms,
   gettext,
   LazFileUtils,
+  TypInfo,
   DefaultTranslator,
   Translations,
   LResources,
@@ -77,6 +78,80 @@ var
   CustomPoFile: string;
 
 implementation
+
+var
+  // Original (English) LFM values of translated properties, keyed by
+  // 'FormName.ComponentName:Property'. Reapplied before every re-translation
+  // so LCLTranslator always sees stable input, no matter the current form
+  // language. Shared across all forms in the process
+  GOriginalCache: TStringList = nil;
+
+procedure SaveOriginals(AForm: TCustomForm);
+var
+  i: integer;
+
+  procedure SaveProp(const AComp: TComponent; const AProp: string);
+  var
+    Key, Value: string;
+  begin
+    if AComp = nil then Exit;
+    if AComp.Name = '' then Exit;
+    if not IsPublishedProp(AComp, AProp) then Exit;
+    Key := AForm.Name + '.' + AComp.Name + ':' + AProp;
+    if GOriginalCache.IndexOfName(Key) >= 0 then Exit;
+    try
+      Value := GetStrProp(AComp, AProp);
+    except
+      Exit; // not a string property
+    end;
+    GOriginalCache.Values[Key] := Value;
+  end;
+
+begin
+  if not Assigned(AForm) then Exit;
+  SaveProp(AForm, 'Caption');
+  SaveProp(AForm, 'Hint');
+  for i := 0 to AForm.ComponentCount - 1 do
+  begin
+    SaveProp(AForm.Components[i], 'Caption');
+    SaveProp(AForm.Components[i], 'Hint');
+  end;
+end;
+
+procedure RestoreOriginals(AForm: TCustomForm);
+var
+  i: integer;
+
+  procedure RestoreProp(const AComp: TComponent; const AProp: string);
+  var
+    Key, Value: string;
+    Idx: integer;
+  begin
+    if AComp = nil then Exit;
+    if AComp.Name = '' then Exit;
+    if not IsPublishedProp(AComp, AProp) then Exit;
+    Key := AForm.Name + '.' + AComp.Name + ':' + AProp;
+    Idx := GOriginalCache.IndexOfName(Key);
+    if Idx < 0 then Exit;
+    Value := GOriginalCache.ValueFromIndex[Idx];
+    try
+      if GetStrProp(AComp, AProp) <> Value then
+        SetStrProp(AComp, AProp, Value);
+    except
+      ; // not a string property
+    end;
+  end;
+
+begin
+  if not Assigned(AForm) then Exit;
+  RestoreProp(AForm, 'Caption');
+  RestoreProp(AForm, 'Hint');
+  for i := 0 to AForm.ComponentCount - 1 do
+  begin
+    RestoreProp(AForm.Components[i], 'Caption');
+    RestoreProp(AForm.Components[i], 'Hint');
+  end;
+end;
 
 { TLocalize }
 
@@ -341,6 +416,19 @@ begin
   // Nothing to apply; skip both unit strings and form update
   if PoText = '' then Exit;
 
+  // Translation may be re-applied to an already translated form.
+  // LCLTranslator looks up PO by original LFM values; without restoration
+  // it would try to translate already translated text and leave it unchanged
+  if not Assigned(GOriginalCache) then
+  begin
+    GOriginalCache := TStringList.Create;
+    // Separator and quote off so 'a = b' captions survive round-trip
+    GOriginalCache.NameValueSeparator := #1;
+    GOriginalCache.QuoteChar := #0;
+  end;
+  SaveOriginals(AForm);
+  RestoreOriginals(AForm);
+
   if Length(AUnitNames) > 0 then
     TranslateUnitsFromPoText(AUnitNames, PoText);
 
@@ -365,5 +453,8 @@ begin
     Exit(True);
   {$ENDIF}
 end;
+
+finalization
+  FreeAndNil(GOriginalCache);
 
 end.
