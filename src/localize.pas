@@ -85,6 +85,10 @@ var
   // so LCLTranslator always sees stable input, no matter the current form
   // language. Shared across all forms in the process
   GOriginalCache: TStringList = nil;
+  // PtrUInt(Form) -> 'Language|CustomPoFile' last applied to that instance;
+  // used to skip re-translation when the form already shows the current
+  // language, which otherwise causes a visible flicker on unrelated events
+  GFormLangCache: TStringList = nil;
 
 procedure SaveOriginals(AForm: TCustomForm);
 var
@@ -399,6 +403,7 @@ end;
 class function TLocalize.TranslateForm(const APrefix: string; AForm: TCustomForm; const AUnitNames: array of string): boolean;
 var
   PoText: string;
+  FormKey, CacheKey: string;
 begin
   Result := False;
 
@@ -415,6 +420,27 @@ begin
 
   // Nothing to apply; skip both unit strings and form update
   if PoText = '' then Exit;
+
+  // Skip when this exact form instance already shows this language and PO.
+  // RestoreOriginals would otherwise briefly flash the original LFM text on
+  // every Relocalize, even when the host triggers it for unrelated reasons
+  // such as switching the active config while the editor is open
+  if Assigned(AForm) then
+  begin
+    if not Assigned(GFormLangCache) then
+    begin
+      GFormLangCache := TStringList.Create;
+      GFormLangCache.NameValueSeparator := #1;
+      GFormLangCache.QuoteChar := #0;
+    end;
+    // Instance identity: a fresh form has a fresh pointer, so recreated
+    // forms are never mistaken for the previous instance with the same name
+    FormKey := IntToStr(PtrUInt(AForm));
+    CacheKey := FormKey + '|' + Language + '|' + CustomPoFile;
+    if GFormLangCache.Values[FormKey] = CacheKey then
+      Exit(True);
+    GFormLangCache.Values[FormKey] := CacheKey;
+  end;
 
   // Translation may be re-applied to an already translated form.
   // LCLTranslator looks up PO by original LFM values; without restoration
@@ -456,5 +482,6 @@ end;
 
 finalization
   FreeAndNil(GOriginalCache);
+  FreeAndNil(GFormLangCache);
 
 end.
