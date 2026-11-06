@@ -57,10 +57,13 @@ type
     // Respects selection, ReadOnly columns, and multiline quoted cells.
     procedure PasteFromClipboard(AAllowBeyondSelection: boolean = False; AConfirmMessage: string = '');
 
-    // Draw text in the grid with highlighting of the found substrings
+    // Draw text in the grid with highlighting of the found substrings.
+    // AVerticalCenter centers the whole block of lines vertically in ARect;
+    // AHorizontalCenter centers each line horizontally. Both default to
+    // top-left layout that callers relied on before
     procedure DrawHighlightedText(ACanvas: TCanvas; ARect: TRect; Colors: TGridDrawColors; const AText, AFilterText: string;
       AHintText: string = string.Empty; AWordWrap: boolean = False; AShowLineBreaks: boolean = False;
-      ABiDiRightToLeft: boolean = False);
+      ABiDiRightToLeft: boolean = False; AVerticalCenter: boolean = False; AHorizontalCenter: boolean = False);
 
     // Determines whether the specified scrollbar (horizontal or vertical) is actually visible,
     // taking into account the ScrollBars property and content size vs. viewport for auto styles.
@@ -380,7 +383,8 @@ end;
 
 procedure TStringGridHelper.DrawHighlightedText(ACanvas: TCanvas; ARect: TRect; Colors: TGridDrawColors;
   const AText, AFilterText: string; AHintText: string = string.Empty; AWordWrap: boolean = False;
-  AShowLineBreaks: boolean = False; ABiDiRightToLeft: boolean = False);
+  AShowLineBreaks: boolean = False; ABiDiRightToLeft: boolean = False; AVerticalCenter: boolean = False;
+  AHorizontalCenter: boolean = False);
 type
   TTextRange = record
     StartPos: integer;
@@ -399,6 +403,7 @@ var
   LineWords: array of TLineWord = ();
   LineStartIndex: integer;
   LineWidth: integer;
+  LineCount: integer;
   Flags: cardinal;
   CurrentY: integer;
   LineHeight: integer;
@@ -534,7 +539,12 @@ var
     for J := LineStart to LineEnd do
       TotalLineWidth := TotalLineWidth + LineWords[J].Width;
 
-    if ABiDiRightToLeft then
+    // Horizontal centering places each line symmetrically in the cell; it
+    // overrides the base alignment when there is free space, and the clamp
+    // below keeps the line inside ARect when the text does not fit
+    if AHorizontalCenter then
+      X := ARect.Left + (ARect.Width - TotalLineWidth) div 2
+    else if ABiDiRightToLeft then
       X := ARect.Right - TotalLineWidth
     else
       X := ARect.Left;
@@ -746,7 +756,47 @@ begin
 
       LineStartIndex := 0;
       LineWidth := 0;
-      CurrentY := ARect.Top;
+
+      // Vertical centering needs a pre-pass to know how many lines the text
+      // will occupy; skip the whole pass when the caller does not center so
+      // non-centering calls pay no extra cost compared to before
+      if AVerticalCenter then
+      begin
+        LineCount := 1;
+        for I := 0 to High(LineWords) do
+        begin
+          WordWidth := LineWords[I].Width;
+          TotalGroupWidth := WordWidth;
+
+          for J := I + 1 to High(LineWords) do
+          begin
+            if (LineWords[J].word = ' ') or (LineWords[J].word = #10) or (LineWords[J].word = #13) or
+              (LineWords[J].word = #13#10) then
+              Break;
+            TotalGroupWidth := TotalGroupWidth + LineWords[J].Width;
+          end;
+
+          IsLineBreak := (LineWords[I].word = #10) or (LineWords[I].word = #13) or (LineWords[I].word = #13#10);
+
+          if ((AWordWrap and (LineWidth > 0) and (LineWidth + TotalGroupWidth > ARect.Width)) or IsLineBreak) then
+          begin
+            Inc(LineCount);
+            LineWidth := WordWidth;
+          end
+          else
+            LineWidth := LineWidth + WordWidth;
+        end;
+
+        // Content fills the cell: fall back to top alignment
+        if LineCount * LineHeight < ARect.Height then
+          CurrentY := ARect.Top + (ARect.Height - LineCount * LineHeight) div 2
+        else
+          CurrentY := ARect.Top;
+      end
+      else
+        CurrentY := ARect.Top;
+
+      LineWidth := 0;
 
       for I := 0 to High(LineWords) do
       begin
