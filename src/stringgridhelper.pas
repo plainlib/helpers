@@ -200,9 +200,10 @@ var
 
     procedure ProcessQuote;
     var
-      endQuote, endField: pchar;
+      endQuote, endField, openQuote: pchar;
       isDelimiter: boolean;
     begin
+      openQuote := leadPtr;
       Inc(leadPtr); // skip opening quote
       wordPtr := leadPtr;
       while leadPtr < tailPtr do
@@ -238,17 +239,28 @@ var
             end;
             leadPtr := endField;
             wordPtr := leadPtr;
-            break;
-          end;
+            Exit;
+          end
+          else
+            Break;
         end;
       end;
-      if leadPtr <> wordPtr then
+      // Closing quote missing or followed by non-delimiter text - treat the whole field literally.
+      curWord := '';
+      leadPtr := openQuote;
+      wordPtr := leadPtr;
+      if FindSet([#9, #10, #13]) then
       begin
-        // unclosed quote – take the rest
+        SetLength(curWord, Length(curWord) + (leadPtr - wordPtr));
+        Move(wordPtr^, curWord[Length(curWord) - (leadPtr - wordPtr) + 1], leadPtr - wordPtr);
+        wordPtr := leadPtr;
+      end
+      else
+      begin
         SetLength(curWord, Length(curWord) + (tailPtr - wordPtr));
         Move(wordPtr^, curWord[Length(curWord) - (tailPtr - wordPtr) + 1], tailPtr - wordPtr);
         leadPtr := tailPtr;
-        wordPtr := leadPtr;   // <-- prevent double paste
+        wordPtr := leadPtr;
         StoreWord;
         NotifyLine;
       end;
