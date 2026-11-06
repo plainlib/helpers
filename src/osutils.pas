@@ -149,6 +149,10 @@ type
     // Returns a timestamp string modified by the count of i characters
     class function GetTimestampMod(const SourceText: string): string;
 
+    // Flashes the taskbar button of the given form until it gains focus;
+    // does nothing on non-Windows platforms or when the app is already active
+    class procedure FlashTaskbar(AForm: TForm);
+
     {$IFDEF WINDOWS}
     // Enables or disables the application autostart registry entry
     class procedure RegAutoStart(const AEnable: boolean; const AppName, OldAppName: string);
@@ -1340,6 +1344,28 @@ begin
 
   // 6. Return as a string (ready to insert into JSON)
   Result := IntToStr(Timestamp);
+end;
+
+class procedure TOS.FlashTaskbar(AForm: TForm);
+{$IFDEF WINDOWS}
+var
+  FlashInfo: TFlashWInfo;
+{$ENDIF}
+begin
+  if not Assigned(AForm) then
+    Exit;
+  {$IFDEF WINDOWS}
+  // Skip when the application already has focus or is shutting down
+  if Application.Terminated or Application.Active then
+    Exit;
+  FlashInfo.cbSize := SizeOf(FlashInfo);
+  FlashInfo.hwnd := AForm.Handle;
+  // Flash the taskbar button until the window comes to foreground
+  FlashInfo.dwFlags := FLASHW_TRAY or FLASHW_TIMERNOFG;
+  FlashInfo.uCount := 0;
+  FlashInfo.dwTimeout := 0;
+  FlashWindowEx(@FlashInfo);
+  {$ENDIF}
 end;
 
 {$IFDEF WINDOWS}
