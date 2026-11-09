@@ -570,45 +570,91 @@ var
     end;
 
     LineStartX := X;
+    LineEndX := X + TotalLineWidth;
 
-    for J := LineStart to LineEnd do
+    if ABiDiRightToLeft then
     begin
-      if (X + LineWords[J].Width > ARect.Right) then
-        Break;
-
-      FontColor := ACanvas.Font.Color;
-      DrawRect := Rect(X, Y, X + LineWords[J].Width, Y + LineHeight);
-      if LineWords[J].IsMatch then
+      // Draw RTL: start from the right edge and move left, iterating forwards
+      X := LineEndX;
+      for J := LineStart to LineEnd do
       begin
-        ACanvas.Font.Color := FontColor.InvertColor(Colors.Highlight);
-        ACanvas.Brush.Style := bsSolid;
-        ACanvas.Brush.Color := Colors.Highlight;
-        ACanvas.FillRect(DrawRect);
-      end
-      else
-        ACanvas.Brush.Style := bsClear;
+        if (X - LineWords[J].Width < ARect.Left) then
+          Break;
 
-      Flags := DT_NOPREFIX;
-      if ABiDiRightToLeft then
-        Flags := Flags or longword(DT_RIGHT)
-      else
-        Flags := Flags or longword(DT_LEFT);
-      if AWordWrap then
-        Flags := Flags or DT_WORDBREAK;
-      DrawText(ACanvas.handle, PChar(LineWords[J].word), Length(LineWords[J].word), DrawRect, Flags);
-      X := X + LineWords[J].Width;
-      ACanvas.Font.Color := FontColor;
+        FontColor := ACanvas.Font.Color;
+        DrawRect := Rect(X - LineWords[J].Width, Y, X, Y + LineHeight);
+        if LineWords[J].IsMatch then
+        begin
+          ACanvas.Font.Color := FontColor.InvertColor(Colors.Highlight);
+          ACanvas.Brush.Style := bsSolid;
+          ACanvas.Brush.Color := Colors.Highlight;
+          ACanvas.FillRect(DrawRect);
+        end
+        else
+          ACanvas.Brush.Style := bsClear;
+
+        Flags := DT_NOPREFIX or longword(DT_RIGHT) or longword(DT_RTLREADING);
+        if AWordWrap then
+          Flags := Flags or DT_WORDBREAK;
+        DrawText(ACanvas.handle, PChar(LineWords[J].word), Length(LineWords[J].word), DrawRect, Flags);
+        X := X - LineWords[J].Width;
+        ACanvas.Font.Color := FontColor;
+      end;
+    end
+    else
+    begin
+      // Draw LTR: start from the left edge and move right
+      X := LineStartX;
+      for J := LineStart to LineEnd do
+      begin
+        if (X + LineWords[J].Width > ARect.Right) then
+          Break;
+
+        FontColor := ACanvas.Font.Color;
+        DrawRect := Rect(X, Y, X + LineWords[J].Width, Y + LineHeight);
+        if LineWords[J].IsMatch then
+        begin
+          ACanvas.Font.Color := FontColor.InvertColor(Colors.Highlight);
+          ACanvas.Brush.Style := bsSolid;
+          ACanvas.Brush.Color := Colors.Highlight;
+          ACanvas.FillRect(DrawRect);
+        end
+        else
+          ACanvas.Brush.Style := bsClear;
+
+        Flags := DT_NOPREFIX or longword(DT_LEFT);
+        if AWordWrap then
+          Flags := Flags or DT_WORDBREAK;
+        DrawText(ACanvas.handle, PChar(LineWords[J].word), Length(LineWords[J].word), DrawRect, Flags);
+        X := X + LineWords[J].Width;
+        ACanvas.Font.Color := FontColor;
+      end;
     end;
 
     if AIsLineBreakEnd and AShowLineBreaks then
     begin
       ACanvas.Font.Color := Colors.LineBreak.InvertColor(ACanvas.Brush.Color);
-      ACanvas.TextOut(X, Y, '\n');
-      LineEndX := X + ACanvas.TextWidth('\n');
+      if ABiDiRightToLeft then
+      begin
+        ACanvas.TextOut(X - ACanvas.TextWidth('\n'), Y, '\n');
+        LineStartX := X - ACanvas.TextWidth('\n');
+        X := LineStartX;
+      end
+      else
+      begin
+        ACanvas.TextOut(X, Y, '\n');
+        LineEndX := X + ACanvas.TextWidth('\n');
+        X := LineEndX;
+      end;
       ACanvas.Font.Color := SavedTextColor;
     end
     else
-      LineEndX := X;
+    begin
+      if ABiDiRightToLeft then
+        LineStartX := X
+      else
+        LineEndX := X;
+    end;
 
     // If this is the very last line, remember its extent for the hint
     if LineEnd = High(LineWords) then
