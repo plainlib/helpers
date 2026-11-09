@@ -721,10 +721,11 @@ procedure TCustomCheckListBoxHelper.DrawCheckListItem(const ARect: Classes.TRect
 const
   PADDING = 4;
 var
-  CheckRect, IconRect: TRect;
+  IconRect: TRect;
   TextLeft: integer;
   Canvas: Graphics.TCanvas;
-  {$IFNDEF LINUX}
+  {$IFDEF WINDOWS}
+  CheckRect: TRect;
   CheckSize: TSize;
   Details: TThemedElementDetails;
   Step, Border: integer;
@@ -745,7 +746,7 @@ begin
     Canvas.FillRect(ARect);
   end;
 
-  {$IFNDEF LINUX}
+  {$IFDEF WINDOWS}
   // Get standard checkbox size from system metrics
   CheckSize.cx := GetSystemMetrics(SM_CXMENUCHECK);
   CheckSize.cy := GetSystemMetrics(SM_CYMENUCHECK);
