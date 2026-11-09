@@ -22,6 +22,7 @@ type
   THotKeyData = record
     Modifiers: cardinal;  // MOD_CONTROL, MOD_SHIFT...
     Key: word;            // virtual key code
+    Double: boolean;      // True = full combination must be pressed twice (double hotkey)
   end;
 
   THotKeyDataHelper = record helper for THotKeyData
@@ -49,6 +50,7 @@ class function THotKeyDataHelper.Create(AKey: word; AModifiers: cardinal = 0): T
 begin
   Result.Modifiers := AModifiers;
   Result.Key := AKey;
+  Result.Double := False;
 end;
 
 function THotKeyDataHelper.ToText: string;
@@ -67,6 +69,9 @@ begin
   case Self.Key of
     0: ; // no key
 
+    VK_SHIFT, VK_LSHIFT, VK_RSHIFT: Result := Result + 'Shift';
+    VK_CONTROL, VK_LCONTROL, VK_RCONTROL: Result := Result + 'Ctrl';
+    VK_MENU, VK_LMENU, VK_RMENU: Result := Result + 'Alt';
     VK_RETURN: Result := Result + 'Enter';
     VK_SPACE: Result := Result + 'Space';
     VK_TAB: Result := Result + 'Tab';
@@ -117,6 +122,9 @@ begin
       else
         Result := Result + Format('VK_%d', [Self.Key]);
   end;
+
+  if Self.Double then
+    Result := Result + ' x2';
 end;
 
 function THotKeyDataHelper.ToShortCut: TShortCut;
