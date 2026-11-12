@@ -373,8 +373,11 @@ var
   Num: double;
   NewS: string; // Used to build modified string when Backtick is True
   HasRelevantChars: boolean; // Optimization flag
+  k, DigitRun, MaxDigitRun: integer;
+  IsCode: boolean;
 const
   MaxTagLength = 500;
+  MinCodeDigitRun = 8; // min run of consecutive digits treated as a code
 begin
   // Initial optimization check: skip processing if string doesn't contain relevant characters
   if Backtick then
@@ -478,8 +481,22 @@ begin
         if (i > Length(S)) or (S[i] = ' ') or ((S[i] in [',', ';', '.']) and (i < Length(S)) and (S[i + 1] = ' ')) then
         begin
           WordStr := Copy(S, Start, i - Start);
-          // Final check to ensure it's not a plain number
-          if not TryStrToFloat(WordStr, Num) then
+          // Reject bodies with a long run of consecutive digits; they are
+          // GUIDs, hashes or other codes, not word-like tags
+          DigitRun := 0;
+          MaxDigitRun := 0;
+          for k := Start + 1 to i - 1 do
+            if S[k] in ['0'..'9'] then
+            begin
+              Inc(DigitRun);
+              if DigitRun > MaxDigitRun then
+                MaxDigitRun := DigitRun;
+            end
+            else
+              DigitRun := 0;
+          IsCode := MaxDigitRun >= MinCodeDigitRun;
+          // Final check to ensure it is not a plain number or a code-like token
+          if not TryStrToFloat(WordStr, Num) and not IsCode then
             Self.Add(WordStr);
         end;
       end;
