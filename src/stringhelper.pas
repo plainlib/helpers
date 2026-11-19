@@ -203,6 +203,9 @@ type
     // Replace all occurrences of OldPattern with NewPattern.
     function ReplaceAll(const OldPattern, NewPattern: string; IgnoreCase: boolean = False): string;
 
+    // Normalize Unicode dashes for terminal compatibility.
+    function NormalizeTerminalText: string;
+
     // Decode a single HTML entity (like '&#39;' or '&amp;') into the corresponding character.
     // Returns the decoded character, or empty string if the entity is invalid or unknown.
     function DecodeHtmlEntity: string;
@@ -1933,6 +1936,18 @@ begin
     else
       P := 0;
   end;
+end;
+
+function TStringHelperEx.NormalizeTerminalText: string;
+begin
+  Result := Self;
+
+  // Normalize Unicode dashes for terminal compatibility
+  Result := StringReplace(Result, #$E2#$80#$90, '-', [rfReplaceAll]); // Hyphen
+  Result := StringReplace(Result, #$E2#$80#$91, '-', [rfReplaceAll]); // Non-breaking hyphen
+  Result := StringReplace(Result, #$E2#$80#$93, '-', [rfReplaceAll]); // En dash
+  Result := StringReplace(Result, #$E2#$80#$94, '-', [rfReplaceAll]); // Em dash
+  Result := StringReplace(Result, #$E2#$88#$92, '-', [rfReplaceAll]); // Minus sign
 end;
 
 function TStringHelperEx.DecodeHtmlEntity: string;
