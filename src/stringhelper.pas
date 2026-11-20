@@ -1939,58 +1939,201 @@ begin
 end;
 
 function TStringHelperEx.NormalizeTerminalText: string;
+var
+  I, L, SrcLen, DstPos: SizeInt;
+  C, C2, C3: byte;
+  Replacement: string;
+  Buffer: rawbytestring = '';
+  Changed: boolean;
 begin
   Result := Self;
+  L := System.Length(Self);
+  if L = 0 then
+    Exit;
 
-  // Normalize Unicode spaces for terminal compatibility
-  Result := StringReplace(Result, #$C2#$A0, ' ', [rfReplaceAll]); // Non-breaking space
-  Result := StringReplace(Result, #$E2#$80#$80, ' ', [rfReplaceAll]); // En quad
-  Result := StringReplace(Result, #$E2#$80#$81, ' ', [rfReplaceAll]); // Em quad
-  Result := StringReplace(Result, #$E2#$80#$82, ' ', [rfReplaceAll]); // En space
-  Result := StringReplace(Result, #$E2#$80#$83, ' ', [rfReplaceAll]); // Em space
-  Result := StringReplace(Result, #$E2#$80#$84, ' ', [rfReplaceAll]); // Three-per-em space
-  Result := StringReplace(Result, #$E2#$80#$85, ' ', [rfReplaceAll]); // Four-per-em space
-  Result := StringReplace(Result, #$E2#$80#$86, ' ', [rfReplaceAll]); // Six-per-em space
-  Result := StringReplace(Result, #$E2#$80#$87, ' ', [rfReplaceAll]); // Figure space
-  Result := StringReplace(Result, #$E2#$80#$88, ' ', [rfReplaceAll]); // Punctuation space
-  Result := StringReplace(Result, #$E2#$80#$89, ' ', [rfReplaceAll]); // Thin space
-  Result := StringReplace(Result, #$E2#$80#$8A, ' ', [rfReplaceAll]); // Hair space
-  Result := StringReplace(Result, #$E2#$80#$AF, ' ', [rfReplaceAll]); // Narrow no-break space
-  Result := StringReplace(Result, #$E2#$81#$9F, ' ', [rfReplaceAll]); // Medium mathematical space
-  Result := StringReplace(Result, #$E3#$80#$80, ' ', [rfReplaceAll]); // Ideographic space
+  Changed := False;
+  I := 1;
 
-  // Remove invisible Unicode formatting characters
-  Result := StringReplace(Result, #$C2#$AD, string.Empty, [rfReplaceAll]); // Soft hyphen
-  Result := StringReplace(Result, #$E2#$80#$8B, string.Empty, [rfReplaceAll]); // Zero-width space
-  Result := StringReplace(Result, #$E2#$81#$A0, string.Empty, [rfReplaceAll]); // Word joiner
-  Result := StringReplace(Result, #$EF#$BB#$BF, string.Empty, [rfReplaceAll]); // Zero-width no-break space
-  Result := StringReplace(Result, #$E2#$83#$A3, string.Empty, [rfReplaceAll]); // Combining enclosing keycap
-  Result := StringReplace(Result, #$CD#$8F, string.Empty, [rfReplaceAll]); // Combining grapheme joiner
-  Result := StringReplace(Result, #$D8#$9C, string.Empty, [rfReplaceAll]); // Arabic letter mark
-  Result := StringReplace(Result, #$E2#$80#$8E, string.Empty, [rfReplaceAll]); // Left-to-right mark
-  Result := StringReplace(Result, #$E2#$80#$8F, string.Empty, [rfReplaceAll]); // Right-to-left mark
+  // Check whether normalization is needed
+  while I <= L do
+  begin
+    C := Ord(Self[I]);
 
-  // Remove bidirectional formatting controls
-  Result := StringReplace(Result, #$E2#$80#$AA, string.Empty, [rfReplaceAll]); // Left-to-right embedding
-  Result := StringReplace(Result, #$E2#$80#$AB, string.Empty, [rfReplaceAll]); // Right-to-left embedding
-  Result := StringReplace(Result, #$E2#$80#$AC, string.Empty, [rfReplaceAll]); // Pop directional formatting
-  Result := StringReplace(Result, #$E2#$80#$AD, string.Empty, [rfReplaceAll]); // Left-to-right override
-  Result := StringReplace(Result, #$E2#$80#$AE, string.Empty, [rfReplaceAll]); // Right-to-left override
-  Result := StringReplace(Result, #$E2#$81#$A6, string.Empty, [rfReplaceAll]); // Left-to-right isolate
-  Result := StringReplace(Result, #$E2#$81#$A7, string.Empty, [rfReplaceAll]); // Right-to-left isolate
-  Result := StringReplace(Result, #$E2#$81#$A8, string.Empty, [rfReplaceAll]); // First strong isolate
-  Result := StringReplace(Result, #$E2#$81#$A9, string.Empty, [rfReplaceAll]); // Pop directional isolate
+    if C < $80 then
+    begin
+      Inc(I);
+      Continue;
+    end;
 
-  // Normalize Unicode dashes for terminal compatibility
-  Result := StringReplace(Result, #$E2#$80#$90, '-', [rfReplaceAll]); // Hyphen
-  Result := StringReplace(Result, #$E2#$80#$91, '-', [rfReplaceAll]); // Non-breaking hyphen
-  Result := StringReplace(Result, #$E2#$80#$93, '-', [rfReplaceAll]); // En dash
-  Result := StringReplace(Result, #$E2#$80#$94, '-', [rfReplaceAll]); // Em dash
-  Result := StringReplace(Result, #$E2#$88#$92, '-', [rfReplaceAll]); // Minus sign
+    SrcLen := 1;
+    if (C >= $C2) and (C <= $DF) then
+      SrcLen := 2
+    else if (C >= $E0) and (C <= $EF) then
+      SrcLen := 3
+    else if (C >= $F0) and (C <= $F4) then
+      SrcLen := 4;
 
-  // Mathematical angle brackets
-  Result := StringReplace(Result, #$E2#$9F#$A8, '<', [rfReplaceAll]); // Mathematical left angle bracket
-  Result := StringReplace(Result, #$E2#$9F#$A9, '>', [rfReplaceAll]); // Mathematical right angle bracket
+    if I + SrcLen - 1 > L then
+      SrcLen := 1;
+
+    if SrcLen = 3 then
+    begin
+      C2 := Ord(Self[I + 1]);
+      C3 := Ord(Self[I + 2]);
+
+      if (C = $E2) and (((C2 = $80) and (C3 >= $80) and (C3 <= $AF)) or ((C2 = $81) and (C3 in [$9F, $A0, $A6..$A9])) or
+        ((C2 = $83) and (C3 = $A3)) or ((C2 = $88) and (C3 in [$92, $97])) or ((C2 = $9F) and (C3 in [$90..$A4])) or
+        ((C2 = $9C) and (C3 in [$93, $94, $97, $98]))) or ((C = $E3) and (C2 = $80) and (C3 = $80)) or
+        ((C = $EF) and (C2 = $BB) and (C3 = $BF)) then
+      begin
+        Changed := True;
+        Break;
+      end;
+    end
+    else if SrcLen = 2 then
+    begin
+      C2 := Ord(Self[I + 1]);
+
+      if ((C = $C2) and (C2 in [$A0, $A9, $AD, $AE])) or ((C = $CD) and (C2 = $8F)) or ((C = $D8) and (C2 = $9C)) then
+      begin
+        Changed := True;
+        Break;
+      end;
+    end;
+
+    Inc(I, SrcLen);
+  end;
+
+  if not Changed then
+    Exit;
+
+  // Allocate the output buffer once
+  SetLength(Buffer, L * 3);
+  I := 1;
+  DstPos := 1;
+
+  while I <= L do
+  begin
+    C := Ord(Self[I]);
+    SrcLen := 1;
+    Replacement := string.Empty;
+
+    if C < $80 then
+    begin
+      Buffer[DstPos] := Self[I];
+      Inc(I);
+      Inc(DstPos);
+      Continue;
+    end;
+
+    if (C >= $C2) and (C <= $DF) then
+      SrcLen := 2
+    else if (C >= $E0) and (C <= $EF) then
+      SrcLen := 3
+    else if (C >= $F0) and (C <= $F4) then
+      SrcLen := 4;
+
+    if I + SrcLen - 1 > L then
+      SrcLen := 1;
+
+    C2 := 0;
+    C3 := 0;
+
+    if SrcLen >= 2 then
+      C2 := Ord(Self[I + 1]);
+    if SrcLen >= 3 then
+      C3 := Ord(Self[I + 2]);
+
+    if SrcLen = 3 then
+    begin
+      if C = $E2 then
+        case C2 of
+          $80:
+            case C3 of
+              $80..$8A: Replacement := ' ';
+              $8B, $8E, $8F: Replacement := string.Empty;
+              $90, $91, $93, $94: Replacement := '-';
+              $98, $99: Replacement := '"';
+              $9A..$9C: Replacement := '''';
+              $A8: Replacement := '...';
+              $AA..$AE: Replacement := string.Empty;
+              $AF: Replacement := ' ';
+              else;
+            end;
+          $81:
+            case C3 of
+              $9F: Replacement := ' ';
+              $A0, $A6..$A9: Replacement := string.Empty;
+              else;
+            end;
+          $83:
+            if C3 = $A3 then
+              Replacement := string.Empty
+            else
+            ;
+          $88:
+            case C3 of
+              $92: Replacement := 'x';
+              $97: Replacement := '/';
+              else;
+            end;
+          $9F:
+            case C3 of
+              $90: Replacement := '<=';
+              $91: Replacement := '->';
+              $92: Replacement := '=>';
+              $A0: Replacement := '->';
+              $A1: Replacement := '<-';
+              $A2: Replacement := '^';
+              $A3: Replacement := 'v';
+              $A4: Replacement := '<->';
+              else;
+            end;
+          $9C:
+            case C3 of
+              $93, $94: Replacement := '[+]';
+              $97, $98: Replacement := '[x]';
+              else;
+            end;
+          else;
+        end
+      else if (C = $E3) and (C2 = $80) and (C3 = $80) then
+        Replacement := ' '
+      else if (C = $EF) and (C2 = $BB) and (C3 = $BF) then
+        Replacement := string.Empty;
+    end
+    else if SrcLen = 2 then
+    begin
+      if C = $C2 then
+        case C2 of
+          $A0: Replacement := ' ';
+          $A9: Replacement := '(C)';
+          $AD: Replacement := string.Empty;
+          $AE: Replacement := '(R)';
+          else;
+        end
+      else if (C = $CD) and (C2 = $8F) then
+        Replacement := string.Empty
+      else if (C = $D8) and (C2 = $9C) then
+        Replacement := string.Empty;
+    end;
+
+    if Replacement <> string.Empty then
+    begin
+      Move(Replacement[1], Buffer[DstPos], System.Length(Replacement));
+      Inc(DstPos, System.Length(Replacement));
+    end
+    else if not ((SrcLen > 1) and (C = $E2) and (C2 = $80) and (C3 in [$80..$AF])) then
+    begin
+      Move(Self[I], Buffer[DstPos], SrcLen);
+      Inc(DstPos, SrcLen);
+    end;
+
+    Inc(I, SrcLen);
+  end;
+
+  SetLength(Buffer, DstPos - 1);
+  Result := string(Buffer);
 end;
 
 function TStringHelperEx.DecodeHtmlEntity: string;
