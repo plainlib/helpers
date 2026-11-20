@@ -1942,12 +1942,55 @@ function TStringHelperEx.NormalizeTerminalText: string;
 begin
   Result := Self;
 
+  // Normalize Unicode spaces for terminal compatibility
+  Result := StringReplace(Result, #$C2#$A0, ' ', [rfReplaceAll]); // Non-breaking space
+  Result := StringReplace(Result, #$E2#$80#$80, ' ', [rfReplaceAll]); // En quad
+  Result := StringReplace(Result, #$E2#$80#$81, ' ', [rfReplaceAll]); // Em quad
+  Result := StringReplace(Result, #$E2#$80#$82, ' ', [rfReplaceAll]); // En space
+  Result := StringReplace(Result, #$E2#$80#$83, ' ', [rfReplaceAll]); // Em space
+  Result := StringReplace(Result, #$E2#$80#$84, ' ', [rfReplaceAll]); // Three-per-em space
+  Result := StringReplace(Result, #$E2#$80#$85, ' ', [rfReplaceAll]); // Four-per-em space
+  Result := StringReplace(Result, #$E2#$80#$86, ' ', [rfReplaceAll]); // Six-per-em space
+  Result := StringReplace(Result, #$E2#$80#$87, ' ', [rfReplaceAll]); // Figure space
+  Result := StringReplace(Result, #$E2#$80#$88, ' ', [rfReplaceAll]); // Punctuation space
+  Result := StringReplace(Result, #$E2#$80#$89, ' ', [rfReplaceAll]); // Thin space
+  Result := StringReplace(Result, #$E2#$80#$8A, ' ', [rfReplaceAll]); // Hair space
+  Result := StringReplace(Result, #$E2#$80#$AF, ' ', [rfReplaceAll]); // Narrow no-break space
+  Result := StringReplace(Result, #$E2#$81#$9F, ' ', [rfReplaceAll]); // Medium mathematical space
+  Result := StringReplace(Result, #$E3#$80#$80, ' ', [rfReplaceAll]); // Ideographic space
+
+  // Remove invisible Unicode formatting characters
+  Result := StringReplace(Result, #$C2#$AD, string.Empty, [rfReplaceAll]); // Soft hyphen
+  Result := StringReplace(Result, #$E2#$80#$8B, string.Empty, [rfReplaceAll]); // Zero-width space
+  Result := StringReplace(Result, #$E2#$81#$A0, string.Empty, [rfReplaceAll]); // Word joiner
+  Result := StringReplace(Result, #$EF#$BB#$BF, string.Empty, [rfReplaceAll]); // Zero-width no-break space
+  Result := StringReplace(Result, #$E2#$83#$A3, string.Empty, [rfReplaceAll]); // Combining enclosing keycap
+  Result := StringReplace(Result, #$CD#$8F, string.Empty, [rfReplaceAll]); // Combining grapheme joiner
+  Result := StringReplace(Result, #$D8#$9C, string.Empty, [rfReplaceAll]); // Arabic letter mark
+  Result := StringReplace(Result, #$E2#$80#$8E, string.Empty, [rfReplaceAll]); // Left-to-right mark
+  Result := StringReplace(Result, #$E2#$80#$8F, string.Empty, [rfReplaceAll]); // Right-to-left mark
+
+  // Remove bidirectional formatting controls
+  Result := StringReplace(Result, #$E2#$80#$AA, string.Empty, [rfReplaceAll]); // Left-to-right embedding
+  Result := StringReplace(Result, #$E2#$80#$AB, string.Empty, [rfReplaceAll]); // Right-to-left embedding
+  Result := StringReplace(Result, #$E2#$80#$AC, string.Empty, [rfReplaceAll]); // Pop directional formatting
+  Result := StringReplace(Result, #$E2#$80#$AD, string.Empty, [rfReplaceAll]); // Left-to-right override
+  Result := StringReplace(Result, #$E2#$80#$AE, string.Empty, [rfReplaceAll]); // Right-to-left override
+  Result := StringReplace(Result, #$E2#$81#$A6, string.Empty, [rfReplaceAll]); // Left-to-right isolate
+  Result := StringReplace(Result, #$E2#$81#$A7, string.Empty, [rfReplaceAll]); // Right-to-left isolate
+  Result := StringReplace(Result, #$E2#$81#$A8, string.Empty, [rfReplaceAll]); // First strong isolate
+  Result := StringReplace(Result, #$E2#$81#$A9, string.Empty, [rfReplaceAll]); // Pop directional isolate
+
   // Normalize Unicode dashes for terminal compatibility
   Result := StringReplace(Result, #$E2#$80#$90, '-', [rfReplaceAll]); // Hyphen
   Result := StringReplace(Result, #$E2#$80#$91, '-', [rfReplaceAll]); // Non-breaking hyphen
   Result := StringReplace(Result, #$E2#$80#$93, '-', [rfReplaceAll]); // En dash
   Result := StringReplace(Result, #$E2#$80#$94, '-', [rfReplaceAll]); // Em dash
   Result := StringReplace(Result, #$E2#$88#$92, '-', [rfReplaceAll]); // Minus sign
+
+  // Mathematical angle brackets
+  Result := StringReplace(Result, #$E2#$9F#$A8, '<', [rfReplaceAll]); // Mathematical left angle bracket
+  Result := StringReplace(Result, #$E2#$9F#$A9, '>', [rfReplaceAll]); // Mathematical right angle bracket
 end;
 
 function TStringHelperEx.DecodeHtmlEntity: string;
