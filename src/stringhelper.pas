@@ -1941,64 +1941,237 @@ end;
 function TStringHelperEx.NormalizeTerminalText: string;
 var
   I, L, SrcLen, DstPos: SizeInt;
-  C, C2, C3: byte;
+  Code: Cardinal;
   Replacement: string;
   Buffer: rawbytestring = '';
-  Changed: boolean;
+  Changed, Handled: boolean;
+
+  function ReadCodePoint(AIndex: SizeInt; out ACode: Cardinal;
+    out ACount: SizeInt): boolean;
+  var
+    B1, B2, B3, B4: byte;
+  begin
+    Result := False;
+    ACode := 0;
+    ACount := 1;
+
+    B1 := Ord(Self[AIndex]);
+
+    if B1 < $80 then
+    begin
+      ACode := B1;
+      Exit(True);
+    end;
+
+    if (B1 >= $C2) and (B1 <= $DF) then
+      ACount := 2
+    else if (B1 >= $E0) and (B1 <= $EF) then
+      ACount := 3
+    else if (B1 >= $F0) and (B1 <= $F4) then
+      ACount := 4
+    else
+      Exit;
+
+    if AIndex + ACount - 1 > L then
+    begin
+      ACount := 1;
+      Exit;
+    end;
+
+    B2 := Ord(Self[AIndex + 1]);
+
+    if (B2 and $C0) <> $80 then
+    begin
+      ACount := 1;
+      Exit;
+    end;
+
+    if ACount >= 3 then
+    begin
+      B3 := Ord(Self[AIndex + 2]);
+
+      if (B3 and $C0) <> $80 then
+      begin
+        ACount := 1;
+        Exit;
+      end;
+    end
+    else
+      B3 := 0;
+
+    if ACount = 4 then
+    begin
+      B4 := Ord(Self[AIndex + 3]);
+
+      if (B4 and $C0) <> $80 then
+      begin
+        ACount := 1;
+        Exit;
+      end;
+    end
+    else
+      B4 := 0;
+
+    // Reject overlong sequences, surrogates and invalid Unicode values
+    if (B1 = $E0) and (B2 < $A0) then
+    begin
+      ACount := 1;
+      Exit;
+    end;
+
+    if (B1 = $ED) and (B2 > $9F) then
+    begin
+      ACount := 1;
+      Exit;
+    end;
+
+    if (B1 = $F0) and (B2 < $90) then
+    begin
+      ACount := 1;
+      Exit;
+    end;
+
+    if (B1 = $F4) and (B2 > $8F) then
+    begin
+      ACount := 1;
+      Exit;
+    end;
+
+    case ACount of
+      2:
+        ACode := ((B1 and $1F) shl 6) or (B2 and $3F);
+      3:
+        ACode := ((B1 and $0F) shl 12) or
+          ((B2 and $3F) shl 6) or (B3 and $3F);
+      4:
+        ACode := ((B1 and $07) shl 18) or
+          ((B2 and $3F) shl 12) or
+          ((B3 and $3F) shl 6) or (B4 and $3F);
+    end;
+
+    Result := True;
+  end;
+
+  function IsControlCode(ACode: Cardinal): boolean;
+  begin
+    Result :=
+      ((ACode < $20) and not (ACode in [$09, $0A, $0D])) or
+      ((ACode >= $7F) and (ACode <= $9F));
+  end;
+
+  function GetReplacement(ACode: Cardinal;
+    out AReplacement: string): boolean;
+  begin
+    Result := True;
+    AReplacement := string.Empty;
+
+    case ACode of
+      // Normalize whitespace
+      $00A0,
+      $2000..$200A,
+      $2028..$2029,
+      $202F,
+      $205F,
+      $3000:
+        AReplacement := ' ';
+
+      // Normalize dashes and minus signs
+      $2010..$2015,
+      $2212,
+      $FE58,
+      $FE63,
+      $FF0D:
+        AReplacement := '-';
+
+      // Normalize single quotes
+      $2018..$201B:
+        AReplacement := '''';
+
+      // Normalize double quotes
+      $201C..$201F:
+        AReplacement := '"';
+
+      // Normalize ellipsis
+      $2026:
+        AReplacement := '...';
+
+      // Preserve simple textual representations of symbols
+      $00A9:
+        AReplacement := '(C)';
+      $00AE:
+        AReplacement := '(R)';
+
+      // Remove invisible and formatting characters
+      $00AD,
+      $034F,
+      $061C,
+      $180E,
+      $200B,
+      $202A..$202E,
+      $2060..$2064,
+      $2066..$2069,
+      $FEFF,
+      $FFF9..$FFFB:
+        AReplacement := string.Empty;
+
+      // Normalize common arrows
+      $2190:
+        AReplacement := '<-';
+      $2191:
+        AReplacement := '^';
+      $2192:
+        AReplacement := '->';
+      $2193:
+        AReplacement := 'v';
+      $2194:
+        AReplacement := '<->';
+      $21D0:
+        AReplacement := '<=';
+      $21D2:
+        AReplacement := '=>';
+      $21D4:
+        AReplacement := '<->';
+
+      // Normalize check and cross marks
+      $2713, $2714:
+        AReplacement := '[+]';
+      $2717, $2718:
+        AReplacement := '[x]';
+
+      else
+        Result := False;
+    end;
+  end;
+
 begin
   Result := Self;
   L := System.Length(Self);
+
   if L = 0 then
     Exit;
 
+  // Check whether normalization is needed
   Changed := False;
   I := 1;
 
-  // Check whether normalization is needed
   while I <= L do
   begin
-    C := Ord(Self[I]);
-
-    if C < $80 then
+    if not ReadCodePoint(I, Code, SrcLen) then
     begin
-      Inc(I);
-      Continue;
+      Changed := True;
+      Break;
     end;
 
-    SrcLen := 1;
-    if (C >= $C2) and (C <= $DF) then
-      SrcLen := 2
-    else if (C >= $E0) and (C <= $EF) then
-      SrcLen := 3
-    else if (C >= $F0) and (C <= $F4) then
-      SrcLen := 4;
-
-    if I + SrcLen - 1 > L then
-      SrcLen := 1;
-
-    if SrcLen = 3 then
+    if IsControlCode(Code) then
     begin
-      C2 := Ord(Self[I + 1]);
-      C3 := Ord(Self[I + 2]);
+      Changed := True;
+      Break;
+    end;
 
-      if (C = $E2) and (((C2 = $80) and (C3 >= $80) and (C3 <= $AF)) or ((C2 = $81) and (C3 in [$9F, $A0, $A6..$A9])) or
-        ((C2 = $83) and (C3 = $A3)) or ((C2 = $88) and (C3 in [$92, $97])) or ((C2 = $9F) and (C3 in [$90..$A4])) or
-        ((C2 = $9C) and (C3 in [$93, $94, $97, $98]))) or ((C = $E3) and (C2 = $80) and (C3 = $80)) or
-        ((C = $EF) and (C2 = $BB) and (C3 = $BF)) then
-      begin
-        Changed := True;
-        Break;
-      end;
-    end
-    else if SrcLen = 2 then
+    if GetReplacement(Code, Replacement) then
     begin
-      C2 := Ord(Self[I + 1]);
-
-      if ((C = $C2) and (C2 in [$A0, $A9, $AD, $AE])) or ((C = $CD) and (C2 = $8F)) or ((C = $D8) and (C2 = $9C)) then
-      begin
-        Changed := True;
-        Break;
-      end;
+      Changed := True;
+      Break;
     end;
 
     Inc(I, SrcLen);
@@ -2008,122 +2181,40 @@ begin
     Exit;
 
   // Allocate the output buffer once
+  if L > High(SizeInt) div 3 then
+    Exit;
+
   SetLength(Buffer, L * 3);
   I := 1;
   DstPos := 1;
 
   while I <= L do
   begin
-    C := Ord(Self[I]);
-    SrcLen := 1;
-    Replacement := string.Empty;
-
-    if C < $80 then
+    if not ReadCodePoint(I, Code, SrcLen) then
     begin
-      Buffer[DstPos] := Self[I];
-      Inc(I);
-      Inc(DstPos);
+      // Skip invalid UTF-8 bytes
+      Inc(I, SrcLen);
       Continue;
     end;
 
-    if (C >= $C2) and (C <= $DF) then
-      SrcLen := 2
-    else if (C >= $E0) and (C <= $EF) then
-      SrcLen := 3
-    else if (C >= $F0) and (C <= $F4) then
-      SrcLen := 4;
-
-    if I + SrcLen - 1 > L then
-      SrcLen := 1;
-
-    C2 := 0;
-    C3 := 0;
-
-    if SrcLen >= 2 then
-      C2 := Ord(Self[I + 1]);
-    if SrcLen >= 3 then
-      C3 := Ord(Self[I + 2]);
-
-    if SrcLen = 3 then
+    if IsControlCode(Code) then
     begin
-      if C = $E2 then
-        case C2 of
-          $80:
-            case C3 of
-              $80..$8A: Replacement := ' ';
-              $8B, $8E, $8F: Replacement := string.Empty;
-              $90, $91, $93, $94: Replacement := '-';
-              $98, $99: Replacement := '"';
-              $9A..$9C: Replacement := '''';
-              $A8: Replacement := '...';
-              $AA..$AE: Replacement := string.Empty;
-              $AF: Replacement := ' ';
-              else;
-            end;
-          $81:
-            case C3 of
-              $9F: Replacement := ' ';
-              $A0, $A6..$A9: Replacement := string.Empty;
-              else;
-            end;
-          $83:
-            if C3 = $A3 then
-              Replacement := string.Empty
-            else
-            ;
-          $88:
-            case C3 of
-              $92: Replacement := 'x';
-              $97: Replacement := '/';
-              else;
-            end;
-          $9F:
-            case C3 of
-              $90: Replacement := '<=';
-              $91: Replacement := '->';
-              $92: Replacement := '=>';
-              $A0: Replacement := '->';
-              $A1: Replacement := '<-';
-              $A2: Replacement := '^';
-              $A3: Replacement := 'v';
-              $A4: Replacement := '<->';
-              else;
-            end;
-          $9C:
-            case C3 of
-              $93, $94: Replacement := '[+]';
-              $97, $98: Replacement := '[x]';
-              else;
-            end;
-          else;
-        end
-      else if (C = $E3) and (C2 = $80) and (C3 = $80) then
-        Replacement := ' '
-      else if (C = $EF) and (C2 = $BB) and (C3 = $BF) then
-        Replacement := string.Empty;
-    end
-    else if SrcLen = 2 then
-    begin
-      if C = $C2 then
-        case C2 of
-          $A0: Replacement := ' ';
-          $A9: Replacement := '(C)';
-          $AD: Replacement := string.Empty;
-          $AE: Replacement := '(R)';
-          else;
-        end
-      else if (C = $CD) and (C2 = $8F) then
-        Replacement := string.Empty
-      else if (C = $D8) and (C2 = $9C) then
-        Replacement := string.Empty;
+      Inc(I, SrcLen);
+      Continue;
     end;
 
-    if Replacement <> string.Empty then
+    Handled := GetReplacement(Code, Replacement);
+
+    if Handled then
     begin
-      Move(Replacement[1], Buffer[DstPos], System.Length(Replacement));
-      Inc(DstPos, System.Length(Replacement));
+      if Replacement <> string.Empty then
+      begin
+        Move(Replacement[1], Buffer[DstPos],
+          System.Length(Replacement));
+        Inc(DstPos, System.Length(Replacement));
+      end;
     end
-    else if not ((SrcLen > 1) and (C = $E2) and (C2 = $80) and (C3 in [$80..$AF])) then
+    else
     begin
       Move(Self[I], Buffer[DstPos], SrcLen);
       Inc(DstPos, SrcLen);
