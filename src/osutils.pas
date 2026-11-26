@@ -153,10 +153,8 @@ type
     // does nothing on non-Windows platforms or when the app is already active
     class procedure FlashTaskbar(AForm: TForm);
 
-    {$IFDEF WINDOWS}
     // Enables or disables the application autostart registry entry
     class procedure RegAutoStart(const AEnable: boolean; const AppName, OldAppName: string);
-    {$ENDIF}
   end;
 
 implementation
@@ -1368,13 +1366,36 @@ begin
   {$ENDIF}
 end;
 
-{$IFDEF WINDOWS}
-
 class procedure TOS.RegAutoStart(const AEnable: boolean; const AppName, OldAppName: string);
+{$IFDEF WINDOWS}
 var
   Reg: TRegistry;
   ExeName: string;
+{$ELSE}
+var
+  ConfigPath, AutoStartPath, FileName, ExeName: string;
+  Lines: TStringList;
+
+  function GetFileName(const AName: string): string;
+  begin
+    Result := StringReplace(AName, ' ', '-', [rfReplaceAll]) + '.desktop';
+  end;
+
+  procedure DeleteEntry(const AName: string);
+  var
+    EntryPath: string;
+  begin
+    if AName = string.Empty then
+      Exit;
+
+    EntryPath := IncludeTrailingPathDelimiter(AutoStartPath) + GetFileName(AName);
+
+    if FileExists(EntryPath) then
+      DeleteFile(EntryPath);
+  end;
+{$ENDIF}
 begin
+  {$IFDEF WINDOWS}
   ExeName := '"' + ParamStr(0) + '"';
 
   Reg := TRegistry.Create;
@@ -1394,7 +1415,7 @@ begin
         if Reg.ValueExists(AppName) then
           Reg.DeleteValue(AppName);
 
-        // also clean legacy key when disabling
+        // Also clean legacy key when disabling
         if Reg.ValueExists(OldAppName) then
           Reg.DeleteValue(OldAppName);
       end;
@@ -1402,8 +1423,46 @@ begin
   finally
     Reg.Free;
   end;
-end;
+  {$ELSE}
+  ConfigPath := GetEnvironmentVariable('XDG_CONFIG_HOME');
 
-{$ENDIF}
+  if ConfigPath = string.Empty then
+    ConfigPath := IncludeTrailingPathDelimiter(GetUserDir) + '.config';
+
+  AutoStartPath := IncludeTrailingPathDelimiter(ConfigPath) + 'autostart';
+  FileName := IncludeTrailingPathDelimiter(AutoStartPath) + GetFileName(AppName);
+
+  // Remove old entry only if name changed
+  if (AppName <> OldAppName) then
+    DeleteEntry(OldAppName);
+
+  if AEnable then
+  begin
+    if not ForceDirectories(AutoStartPath) then
+      Exit;
+
+    ExeName := StringReplace(ParamStr(0), '\', '\\', [rfReplaceAll]);
+    ExeName := StringReplace(ExeName, '"', '\"', [rfReplaceAll]);
+
+    Lines := TStringList.Create;
+    try
+      Lines.Add('[Desktop Entry]');
+      Lines.Add('Type=Application');
+      Lines.Add('Name=' + AppName);
+      Lines.Add('Exec="' + ExeName + '"');
+      Lines.Add('Terminal=false');
+      Lines.Add('X-GNOME-Autostart-enabled=true');
+      Lines.SaveToFile(FileName);
+    finally
+      Lines.Free;
+    end;
+  end
+  else
+  begin
+    DeleteEntry(AppName);
+    DeleteEntry(OldAppName);
+  end;
+  {$ENDIF}
+end;
 
 end.
