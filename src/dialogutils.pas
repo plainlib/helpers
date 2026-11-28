@@ -10,6 +10,7 @@ uses
   StdCtrls,
   CheckLst,
   SysUtils,
+  Graphics,
   Classes,
   Grids,
   ValEdit;
@@ -37,7 +38,8 @@ type
     // Shows a table editor for TStringList values and returns a new list on OK.
     // When AReadOnly is True, the list is displayed without editing.
     class function StringListQueryLite(const ACaption: string; AValues: TStrings; AReadOnly: boolean = False;
-      AWidth: integer = 600; AHeight: integer = 450; ANameColumnWidth: integer = 180): TStringList;
+      AWidth: integer = 600; AHeight: integer = 450; ANameColumnWidth: integer = 180; GridLineColor: TColor = clNone;
+      AlternateColor: TColor = clNone): TStringList;
   end;
 
 implementation
@@ -467,7 +469,8 @@ begin
 end;
 
 class function TDialogUtils.StringListQueryLite(const ACaption: string; AValues: TStrings; AReadOnly: boolean;
-  AWidth: integer; AHeight: integer; ANameColumnWidth: integer): TStringList;
+  AWidth: integer; AHeight: integer; ANameColumnWidth: integer; GridLineColor: TColor = clNone;
+  AlternateColor: TColor = clNone): TStringList;
 var
   InputForm: TForm = nil;
   ValueEditor: TValueListEditor = nil;
@@ -502,6 +505,11 @@ begin
     ValueEditor.Align := alClient;
     ValueEditor.BorderSpacing.Around := InputForm.Scale96ToForm(12);
 
+    if GridLineColor <> clNone then
+      ValueEditor.GridLineColor := GridLineColor;
+    if AlternateColor <> clNone then
+      ValueEditor.AlternateColor := AlternateColor;
+
     // Initialize the editor columns
     ValueEditor.Strings.NameValueSeparator := '=';
     ValueEditor.Strings.Assign(AValues);
@@ -511,7 +519,7 @@ begin
     ValueEditor.TitleCaptions.Add('Value');
 
     ValueEditor.ColWidths[0] := ANameColumnWidth;
-    ValueEditor.Options := ValueEditor.Options + [goColSizing, goRangeSelect, goDrawFocusSelected];
+    ValueEditor.Options := ValueEditor.Options + [goColSizing, goRangeSelect, goDrawFocusSelected, goRowHighlight];
 
     if AReadOnly then
     begin
@@ -528,6 +536,7 @@ begin
     else
       BtnOK.Caption := 'OK';
     BtnOK.ModalResult := mrOk;
+    BtnOK.Cancel := AReadOnly;
     BtnOK.Default := True;
     BtnOK.Width := InputForm.Scale96ToForm(75);
     BtnOK.Height := InputForm.Scale96ToForm(25);
@@ -541,6 +550,7 @@ begin
       BtnCancel.Caption := 'Cancel';
       BtnCancel.ModalResult := mrCancel;
       BtnCancel.Cancel := True;
+      BtnCancel.Default := True;
       BtnCancel.Width := InputForm.Scale96ToForm(75);
       BtnCancel.Height := InputForm.Scale96ToForm(25);
       BtnCancel.Anchors := [akRight, akBottom];
