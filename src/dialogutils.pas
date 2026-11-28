@@ -509,6 +509,7 @@ begin
       ValueEditor.GridLineColor := GridLineColor;
     if AlternateColor <> clNone then
       ValueEditor.AlternateColor := AlternateColor;
+    ValueEditor.FocusColor := clSilver;
 
     // Initialize the editor columns
     ValueEditor.Strings.NameValueSeparator := '=';
