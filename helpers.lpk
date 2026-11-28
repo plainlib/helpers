@@ -100,6 +100,10 @@ SOFTWARE.
         <Filename Value="src\objectdictionary.pas"/>
         <UnitName Value="objectdictionary"/>
       </Item>
+      <Item>
+        <Filename Value="src\dialogutils.pas"/>
+        <UnitName Value="dialogutils"/>
+      </Item>
     </Files>
     <RequiredPkgs>
       <Item>
